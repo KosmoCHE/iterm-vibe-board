@@ -32,16 +32,16 @@ Commands (add --json for machine-readable output):
   vibing set ID --next "..." | --waiting "..." | --status S | --depends ID,ID
   vibing done ID
 
-Statuses: todo doing waiting_me waiting_others later done.
-Use --status waiting_me when the human has to decide something.
+Statuses: todo doing waiting later done.
+When something blocks you, set --status waiting and say on whom in --waiting
+("me: approve the resize" when it is the human, or a name, or a machine).
 Your session and project are detected from the pane you run in.
 """
 
 STATUS_MARK = {
     "todo": "·",
     "doing": "▸",
-    "waiting_me": "?",
-    "waiting_others": "…",
+    "waiting": "…",
     "later": "~",
     "done": "✓",
 }

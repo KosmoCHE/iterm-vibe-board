@@ -23,8 +23,7 @@ IT2 = shutil.which("it2") or "/Applications/iTerm.app/Contents/Resources/utiliti
 LABELS = {
     "todo": "To do",
     "doing": "In progress",
-    "waiting_me": "Waiting on me",
-    "waiting_others": "Waiting on others",
+    "waiting": "Waiting",
     "later": "Later",
     "done": "Done",
 }

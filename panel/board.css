@@ -40,8 +40,6 @@ header { border-bottom: 1px solid var(--line); padding: 6px 8px 4px; }
 
 main { flex: 1; overflow-y: auto; padding-bottom: 6px; }
 h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 10px 8px 2px; }
-.waiting { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-.waiting h2 { color: var(--warn); }
 .empty { color: var(--muted); margin: 12px 8px; }
 
 .row { padding: 0 8px 0 calc(8px + var(--depth, 0) * 14px); }
@@ -63,7 +61,7 @@ h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacin
 .badge.incident { color: var(--danger); font-weight: 600; }
 .badge.insert { color: var(--warn); font-weight: 600; }
 .badge.status.doing { color: var(--accent); }
-.badge.status.waiting_me { color: var(--warn); }
+.badge.status.waiting { color: var(--warn); }
 .badge.driver { color: var(--fg); border: 1px solid var(--line); background: none; cursor: pointer; }
 .badge.driver.ended { color: var(--muted); border-style: dashed; }
 

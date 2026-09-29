@@ -183,15 +183,6 @@ function render() {
   }
   for (const k in kids) kids[k].sort((x, y) => x.created_at.localeCompare(y.created_at));
 
-  const waiting = items.filter((i) => i.status === "waiting_me");
-  const w = $("#waiting");
-  w.replaceChildren();
-  w.hidden = !waiting.length;
-  if (waiting.length) {
-    w.append(el("h2", "", b.labels.waiting_me));
-    waiting.forEach((i) => w.append(row(i, 0, 0)));
-  }
-
   const tree = $("#tree");
   tree.replaceChildren();
   const roots = kids.root || [];
@@ -283,7 +274,10 @@ function row(item, depth, nChildren) {
   const badges = el("span", "badges");
   if (item.origin === "incident") badges.append(el("span", "badge incident", "⚡"));
   if (item.origin === "insert") badges.append(el("span", "badge insert", "+"));
-  if (item.status !== "todo" && item.status !== "done") badges.append(el("span", "badge status " + item.status, b.labels[item.status]));
+  if (item.status !== "todo" && item.status !== "done") {
+    const label = b.labels[item.status] + (item.status === "waiting" && item.waiting_for ? ": " + item.waiting_for : "");
+    badges.append(el("span", "badge status " + item.status, label));
+  }
   const p = progress(item.id);
   if (p.total) {
     let s = `${p.plan_done}/${p.plan_total}`;

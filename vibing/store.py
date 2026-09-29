@@ -24,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-STATUSES = ["todo", "doing", "waiting_me", "waiting_others", "later", "done"]
+STATUSES = ["todo", "doing", "waiting", "later", "done"]
 ORIGINS = ["plan", "incident", "insert"]
 ME = "me"
 
