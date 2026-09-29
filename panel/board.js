@@ -397,12 +397,14 @@ function renderInspector() {
 
   if (state.editing) {
     box.append(field("Title", text(item.title, (v) => v && patch(item.id, { title: v }))));
+    box.append(field("Description", textarea(item.description, (v) => patch(item.id, { description: v }))));
     box.append(field("Status", choice(b.statuses.map((s) => [s, b.labels[s]]), item.status, (v) => patch(item.id, { status: v }))));
     box.append(field("Driver", choice(driverOptions(), item.driver || "", (v) => patch(item.id, { driver: v || null }), "insp-driver")));
     box.append(field("Next", text(item.next, (v) => patch(item.id, { next: v }))));
     box.append(field("Waiting for", text(item.waiting_for, (v) => patch(item.id, { waiting_for: v }))));
     box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
   } else {
+    if (item.description) box.append(el("div", "desc", item.description));
     box.append(field("Status", el("span", "", b.labels[item.status])));
     box.append(field("Driver", el("span", "", item.driver ? whoName(item.driver) : "unassigned")));
     if (item.next) box.append(field("Next", el("span", "", item.next)));
@@ -432,6 +434,23 @@ function choice(options, value, onChange, id) {
     onChange(sel.value);
   };
   return sel;
+}
+
+function textarea(value, onCommit) {
+  const area = el("textarea");
+  area.value = value || "";
+  area.rows = Math.min(8, Math.max(3, (value || "").split("\n").length + 1));
+  area.onkeydown = (e) => {
+    if (e.key === "Enter" && e.metaKey) area.blur();
+    if (e.key === "Escape") {
+      area.value = value || "";
+      area.blur();
+    }
+  };
+  area.onblur = () => {
+    if (area.value.trim() !== (value || "")) onCommit(area.value.trim());
+  };
+  return area;
 }
 
 function text(value, onCommit) {

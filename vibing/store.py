@@ -29,6 +29,7 @@ ME = "me"
 
 DEFAULTS = {
     "title": "",
+    "description": "",
     "status": "todo",
     "origin": "plan",
     "created_by": ME,
@@ -45,6 +46,7 @@ DEFAULTS = {
 # Fields a caller may set. `origin` and `created_by` are history: fixed at creation.
 EDITABLE = {
     "title",
+    "description",
     "status",
     "driver",
     "project",
@@ -279,7 +281,7 @@ def _validated(fields: dict, items: dict, creating: bool, self_id: str | None = 
                     raise KeyError(dep)
         if key in ("start", "due") and value is not None and not _DATE.match(str(value)):
             raise ValueError(f"{key} must look like 2026-09-29")
-        if key in ("next", "waiting_for") and value is None:
+        if key in ("description", "next", "waiting_for") and value is None:
             value = ""
         out[key] = value
     return out

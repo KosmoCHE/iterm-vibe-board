@@ -87,7 +87,9 @@ body { position: relative; }
 .inspector .field { display: grid; grid-template-columns: 6em 1fr; gap: 4px; align-items: center; margin: 2px 0; }
 .inspector .field label { color: var(--muted); text-align: right; }
 .inspector .field span { word-break: break-word; -webkit-user-select: text; user-select: text; }
-.inspector input, .inspector select { width: 100%; }
+.inspector input, .inspector select, .inspector textarea { width: 100%; }
+.inspector textarea { resize: vertical; }
+.inspector .desc { white-space: pre-wrap; word-break: break-word; margin: 0 0 6px; -webkit-user-select: text; user-select: text; }
 
 /* bottom bar: + on the left, message and Undo on the right */
 #plus { font-size: 17px; line-height: 1; color: var(--muted); width: 18px; text-align: center; }

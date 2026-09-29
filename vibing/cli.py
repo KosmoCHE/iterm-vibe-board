@@ -116,6 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _field_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--desc", dest="description", help="what this item is about, in detail")
     p.add_argument("--next", dest="next_step", help="what happens next")
     p.add_argument("--waiting", dest="waiting_for", help="who or what this waits for")
     p.add_argument("--depends", help="comma-separated ids this depends on")
@@ -126,6 +127,7 @@ def _field_args(p: argparse.ArgumentParser) -> None:
 def _fields(args: argparse.Namespace) -> dict:
     out = {}
     for attr, key in (
+        ("description", "description"),
         ("next_step", "next"),
         ("waiting_for", "waiting_for"),
         ("due", "due"),

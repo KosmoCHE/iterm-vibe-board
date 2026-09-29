@@ -29,10 +29,10 @@ private list.
 ```
 vibing list [--all | --project PATH] [--mine]      what is on the board
 vibing show ID
-vibing add "title" [--parent ID] [--origin plan|incident|insert]
+vibing add "title" [--parent ID] [--origin plan|incident|insert] [--desc "…"]
                    [--next "…"] [--waiting "…"] [--due 2026-10-03]
 vibing claim ID                                     you push this item; status → doing
-vibing set ID --next "…" | --waiting "…" | --status S | --depends ID,ID
+vibing set ID --desc "…" | --next "…" | --waiting "…" | --status S | --depends ID,ID
 vibing done ID
 ```
 

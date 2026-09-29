@@ -93,6 +93,12 @@ def test_corrupt_item_file_loses_only_that_item(tmp_home):
     assert set(store.load_all()) == {keep["id"]}
 
 
+def test_description_is_free_text():
+    item = store.create("a", "/tmp/a", description="why\nand how")
+    assert item["description"] == "why\nand how"
+    assert store.update(item["id"], description=None)["description"] == ""
+
+
 def test_hook_records_the_pane(monkeypatch):
     monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
     event = {"hook_event_name": "SessionStart", "session_id": "s1", "cwd": "/tmp/a"}
