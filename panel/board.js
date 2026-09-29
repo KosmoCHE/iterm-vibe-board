@@ -75,9 +75,28 @@ async function patch(id, fields, undoable = true) {
   }
 }
 
+// Delete is archive: the files move aside, and ⌘Z brings them back.
+async function remove(item) {
+  try {
+    const ids = await api(`/api/items/${item.id}/archive`, { method: "POST" });
+    state.undo.push({ id: item.id, restore: true, title: item.title });
+    if (state.undo.length > UNDO_DEPTH) state.undo.shift();
+    if (state.selected === item.id) select(null);
+    setNotice(`Deleted “${item.title}”` + (ids.length > 1 ? ` and ${ids.length - 1} steps` : "") + " — ⌘Z to undo");
+    await poll();
+  } catch (e) {
+    showError(e);
+  }
+}
+
 async function undo() {
   const last = state.undo.pop();
   if (!last) return;
+  if (last.restore) {
+    await api(`/api/items/${last.id}/restore`, { method: "POST" }).then(poll, showError);
+    setNotice(`Restored “${last.title}”`);
+    return;
+  }
   await patch(last.id, last.fields, false);
   setNotice(`Undid the change to “${last.title}”`);
 }
@@ -293,8 +312,7 @@ function doneFold(n, key, depth) {
   const r = el("div", "row fold");
   r.style.setProperty("--depth", depth);
   const line = el("div", "line");
-  const caret = el("button", "caret" + (state.showDone[key] ? " open" : ""));
-  line.append(caret, el("span", "", `✓ ${n} done`));
+  line.append(el("span"), el("span", "", `${state.showDone[key] ? "Hide" : "Show"} ${n} done`));
   line.onclick = () => {
     state.showDone[key] = !state.showDone[key];
     render();
@@ -396,6 +414,7 @@ function openMenu(item, x, y) {
   action(`Copy #${item.num}`, () =>
     navigator.clipboard.writeText("#" + item.num).then(() => setNotice(`Copied #${item.num}`), showError)
   );
+  action(`Delete #${item.num}`, () => remove(item));
   state.menu = item.id;
   m.hidden = false;
   m.style.left = Math.min(x, innerWidth - m.offsetWidth - 8) + "px";

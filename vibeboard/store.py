@@ -244,14 +244,23 @@ def update(item_id: str, **fields) -> dict:
     return item
 
 
-def archive(item_id: str, restore: bool = False) -> dict:
+def archive(item_id: str, restore: bool = False) -> list[dict]:
+    """Move an item and everything under it out of the live board, or back into it.
+
+    Returns the items moved, the one asked for first.
+    """
     items = load_all(archived=restore)
-    item = items[item_id]
-    src = _item_path(item, archived=restore)
-    dst = _item_path(item, archived=not restore)
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(src, dst)
-    return item
+    moved = []
+    todo = [items[item_id]]
+    while todo:
+        item = todo.pop(0)
+        src = _item_path(item, archived=restore)
+        dst = _item_path(item, archived=not restore)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(src, dst)
+        moved.append(item)
+        todo += [i for i in items.values() if i["parent"] == item["id"]]
+    return moved
 
 
 def _validated(fields: dict, items: dict, creating: bool, self_id: str | None = None) -> dict:

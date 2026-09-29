@@ -83,12 +83,15 @@ def build_parser() -> argparse.ArgumentParser:
     for name, help_text, func in (
         ("claim", "push this item: driver = caller, status = doing", cmd_claim),
         ("done", "mark an item done", cmd_done),
-        ("archive", "move an item out of the live board", cmd_archive),
+        ("archive", "move an item and its steps out of the live board", cmd_archive),
     ):
         c = sub.add_parser(name, help=help_text)
         c.add_argument("id")
         c.add_argument("--json", action="store_true")
         c.set_defaults(func=func)
+    sub.choices["archive"].add_argument(
+        "--restore", action="store_true", help="bring an archived item back"
+    )
 
     pane = sub.add_parser("pane", help="record which session runs in this pane (used by hooks)")
     pane_sub = pane.add_subparsers(dest="event", required=True)
@@ -222,7 +225,9 @@ def cmd_done(args: argparse.Namespace) -> None:
 
 
 def cmd_archive(args: argparse.Namespace) -> None:
-    _emit(store.archive(_resolve(args.id, args)), args.json)
+    items = store.load_all(archived=True) if args.restore else None
+    item_id = store.resolve(args.id, None, items) if args.restore else _resolve(args.id, args)
+    _emit(store.archive(item_id, restore=args.restore)[0], args.json)
 
 
 def cmd_show(args: argparse.Namespace) -> None:

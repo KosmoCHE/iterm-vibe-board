@@ -169,7 +169,9 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("project is required")
                 self._json(store.create(title, project, **body), HTTPStatus.CREATED)
             elif url.path.startswith("/api/items/") and url.path.endswith("/archive"):
-                self._json(store.archive(url.path.split("/")[3]))
+                self._json([i["id"] for i in store.archive(url.path.split("/")[3])])
+            elif url.path.startswith("/api/items/") and url.path.endswith("/restore"):
+                self._json([i["id"] for i in store.archive(url.path.split("/")[3], restore=True)])
             elif url.path == "/api/focus":
                 self.server.focus = store.pane_id(body["pane"]) if body.get("pane") else None
                 self._json({"ok": True})

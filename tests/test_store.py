@@ -51,11 +51,12 @@ def test_validation():
 def test_done_sets_done_at_and_archive_moves_file(tmp_home):
     item = store.create("x", "/tmp/a")
     assert store.update(item["id"], status="done")["done_at"]
-    store.archive(item["id"])
-    assert item["id"] not in store.load_all()
+    step = store.create("step", "/tmp/a", parent=item["id"])
+    assert [i["id"] for i in store.archive(item["id"])] == [item["id"], step["id"]]
+    assert not store.load_all()
     assert item["id"] in store.load_all(archived=True)
     store.archive(item["id"], restore=True)
-    assert item["id"] in store.load_all()
+    assert set(store.load_all()) == {item["id"], step["id"]}
 
 
 def test_identity_follows_the_pane(monkeypatch):
