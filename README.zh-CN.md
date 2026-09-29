@@ -1,6 +1,6 @@
 # iterm-vibing-board
 
-住在 iTerm2 侧栏里的待办本，以人为中心，你和每个 pane 里跑着的 AI coding agent 一起维护。
+住在 iTerm2 侧栏里的进度看板，以人为中心，你和每个 pane 里跑着的 AI coding agent 一起维护。
 
 > **状态：pre-alpha。**还什么都不能用。设计已定，代码在写。
 

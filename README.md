@@ -1,6 +1,6 @@
 # iterm-vibing-board
 
-A human-first task board that lives in the iTerm2 toolbelt, shared by you and
+A human-first progress board that lives in the iTerm2 toolbelt, shared by you and
 every AI coding agent running in your panes.
 
 > **Status: pre-alpha.** Nothing works yet. The design is settled; the code is
