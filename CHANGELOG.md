@@ -10,3 +10,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 - Repository scaffold: license, README, contribution guide, lint, test and
   CI configuration.
+- Store: one JSON file per item under `~/.iterm-vibing-board/projects/<key>/`,
+  hash ids plus per-project numbers, statuses, origins, drivers, sub-steps and
+  cross-project dependencies.
+- `vibing` CLI: `add`, `list`, `show`, `set`, `claim`, `done`, `archive`,
+  `pane`, `hook`, `serve`, `instructions`.
+- Panel in the iTerm2 toolbelt with Global, Project and Session tabs, a local
+  stdlib-only HTTP server and an AutoLaunch script that registers it.
+- Claude Code adapter: a skill with the three rules and two hooks that map
+  panes to sessions.
