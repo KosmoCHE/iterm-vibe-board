@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vibeboard"
-version = "0.0.0"
+version = "0.1.0"
 description = "Human-first progress board in the iTerm2 toolbelt, shared with your AI coding agents"
 readme = "README.md"
 requires-python = ">=3.9"

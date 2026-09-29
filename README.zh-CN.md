@@ -2,7 +2,7 @@
 
 住在 iTerm2 侧栏里的进度看板，以人为中心，你和每个 pane 里跑着的 AI coding agent 一起维护。
 
-> **状态：pre-alpha。**从 clone 里跑，面板、`vibeboard` 命令行和 Claude Code 适配层都能用；还没有安装脚本，数据格式也可能再改。
+> **状态：0.1，早期。**面板、`vibeboard` 命令行、Claude Code 适配层和 `install.sh` 都能从 clone 里跑起来；1.0 之前数据格式还可能改。
 
 [English](README.md)
 

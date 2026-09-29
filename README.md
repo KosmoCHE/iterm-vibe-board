@@ -3,9 +3,9 @@
 A human-first progress board that lives in the iTerm2 toolbelt, shared by you and
 every AI coding agent running in your panes.
 
-> **Status: pre-alpha.** The panel, the `vibeboard` CLI and the Claude Code
-> adapter work when run from a clone. There is no installer yet and the data
-> format may still change.
+> **Status: 0.1, early.** The panel, the `vibeboard` CLI, the Claude Code
+> adapter and `install.sh` work from a clone. The data format may still
+> change before 1.0.
 
 [中文说明](README.zh-CN.md)
 
