@@ -380,12 +380,17 @@ function row(item, depth, nChildren) {
     content.append(detail);
   }
   line.append(caret, box, num, content);
+  // Click shows or hides the details, double-click edits. The click waits a beat so a
+  // double-click does not open and close the details on its way in.
+  let pending = null;
   line.onclick = (e) => {
     if (e.target.closest("button, input, select")) return;
-    if (state.selected !== item.id) select(item.id); // click reads, double-click edits
+    clearTimeout(pending);
+    pending = setTimeout(() => select(state.selected === item.id ? null : item.id), 220);
   };
   line.ondblclick = (e) => {
     if (e.target.closest("button, input, select")) return;
+    clearTimeout(pending);
     select(item.id, true);
   };
   r.oncontextmenu = (e) => {
