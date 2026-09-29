@@ -19,7 +19,7 @@ the server, so the hook records nothing there.
 
 `./install.sh` at the top of the clone links the skill into `~/.claude/skills/`
 and adds the two hooks to `~/.claude/settings.json`, pointing at the launcher
-in `~/.iterm-vibing-board/bin/`. By hand, it is the same two steps:
+in `~/.iterm-vibe-board/bin/`. By hand, it is the same two steps:
 
 ```sh
 ln -s "$PWD/adapters/claude-code/skills/vibing" ~/.claude/skills/vibing

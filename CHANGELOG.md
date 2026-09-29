@@ -10,7 +10,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 - Repository scaffold: license, README, contribution guide, lint, test and
   CI configuration.
-- Store: one JSON file per item under `~/.iterm-vibing-board/projects/<key>/`,
+- Store: one JSON file per item under `~/.iterm-vibe-board/projects/<key>/`,
   hash ids plus per-project numbers, statuses, origins, drivers, sub-steps and
   cross-project dependencies.
 - `vibing` CLI: `add`, `list`, `show`, `set`, `claim`, `done`, `archive`,

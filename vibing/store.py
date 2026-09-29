@@ -1,6 +1,6 @@
 """On-disk store: one JSON file per item, one directory per project.
 
-Layout under VIBING_HOME (default ~/.iterm-vibing-board):
+Layout under VIBING_HOME (default ~/.iterm-vibe-board):
 
     projects/<key>/project.json       the project's real path
     projects/<key>/items/<id>.json    live items
@@ -59,7 +59,7 @@ _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def home() -> Path:
-    return Path(os.environ.get("VIBING_HOME") or Path.home() / ".iterm-vibing-board")
+    return Path(os.environ.get("VIBING_HOME") or Path.home() / ".iterm-vibe-board")
 
 
 def now() -> str:

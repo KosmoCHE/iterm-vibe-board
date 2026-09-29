@@ -1,4 +1,4 @@
-# iterm-vibing-board
+# iterm-vibe-board
 
 A human-first progress board that lives in the iTerm2 toolbelt, shared by you and
 every AI coding agent running in your panes.
@@ -26,7 +26,7 @@ items are yours, agents are just the ones pushing them.
 
 ## What it does
 
-- **One panel, three tabs** in the iTerm2 toolbelt (View › Toolbelt › Vibing):
+- **One panel, three tabs** in the iTerm2 toolbelt (View › Toolbelt › Vibe Board):
   - **Global** – everything, grouped by project. A select narrows it to one
     project or one session.
   - **Project** – the items of the project the focused pane's session was
@@ -64,16 +64,16 @@ items are yours, agents are just the ones pushing them.
 ## Try it
 
 ```sh
-git clone https://github.com/KosmoCHE/iterm-vibing-board && cd iterm-vibing-board
+git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 ./install.sh
 ```
 
-This puts the `vibing` launcher in `~/.iterm-vibing-board/bin/` (and on your
+This puts the `vibing` launcher in `~/.iterm-vibe-board/bin/` (and on your
 PATH), links the Claude Code skill and hooks, and registers the panel as an
-iTerm2 AutoLaunch script. Then enable it under View › Toolbelt › Vibing.
+iTerm2 AutoLaunch script. Then enable it under View › Toolbelt › Vibe Board.
 Rerun after `git pull`; `./install.sh --uninstall` takes it all out again.
 
-Data lives in `~/.iterm-vibing-board/`: one JSON file per item under
+Data lives in `~/.iterm-vibe-board/`: one JSON file per item under
 `projects/<key>/items/`, plus a small map from panes to sessions. Set
 `VIBING_HOME` to use another directory.
 

@@ -1,7 +1,7 @@
 #!/bin/sh
-# Installs iterm-vibing-board for the current user, from this clone:
+# Installs iterm-vibe-board for the current user, from this clone:
 #
-#   ~/.iterm-vibing-board/bin/vibing              launcher for the CLI (hooks and agents call it)
+#   ~/.iterm-vibe-board/bin/vibing              launcher for the CLI (hooks and agents call it)
 #   ~/.claude/skills/vibing                        -> adapters/claude-code/skills/vibing
 #   ~/.claude/settings.json                        SessionStart and SessionEnd hooks added
 #   ~/Library/Application Support/iTerm2/Scripts/AutoLaunch/vibing_panel.py -> iterm/vibing_panel.py
@@ -10,7 +10,7 @@
 set -eu
 
 ROOT=$(cd "$(dirname "$0")" && pwd -P)
-DATA=${VIBING_HOME:-$HOME/.iterm-vibing-board}
+DATA=${VIBING_HOME:-$HOME/.iterm-vibe-board}
 BIN=$DATA/bin/vibing
 SKILL=$HOME/.claude/skills/vibing
 SETTINGS=$HOME/.claude/settings.json
@@ -83,7 +83,7 @@ EOF
   if ! command -v vibing >/dev/null 2>&1; then
     line="export PATH=\"$DATA/bin:\$PATH\""
     if [ "$(basename "${SHELL:-}")" = zsh ] && ! grep -qF "$DATA/bin" "$HOME/.zshrc" 2>/dev/null; then
-      printf '\n# iterm-vibing-board\n%s\n' "$line" >> "$HOME/.zshrc"
+      printf '\n# iterm-vibe-board\n%s\n' "$line" >> "$HOME/.zshrc"
       echo "Added $DATA/bin to PATH in ~/.zshrc; open a new shell for \`vibing\` to work."
     else
       echo "Put \`vibing\` on your PATH: $line"
@@ -98,7 +98,7 @@ EOF
     echo "The panel is already running."
   else
     nohup "$runtime" "$PANEL" >/dev/null 2>&1 &
-    echo "Panel started; enable it under View › Toolbelt › Vibing. iTerm2 starts it itself from now on."
+    echo "Panel started; enable it under View › Toolbelt › Vibe Board. iTerm2 starts it itself from now on."
   fi
 }
 

@@ -1,4 +1,4 @@
-# iterm-vibing-board
+# iterm-vibe-board
 
 住在 iTerm2 侧栏里的进度看板，以人为中心，你和每个 pane 里跑着的 AI coding agent 一起维护。
 
@@ -18,7 +18,7 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 
 ## 做什么
 
-- **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibing）：
+- **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibe Board）：
   - **Global**：所有的事，按项目分组；一个筛选框可以只看一个项目或一个 session。
   - **Project**：聚焦 pane 里的会话所在项目的事（按 Claude Code 启动目录算）。
   - **Session**：聚焦 pane 里的会话正在推的事。
@@ -38,13 +38,13 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 ## 试一下
 
 ```sh
-git clone https://github.com/KosmoCHE/iterm-vibing-board && cd iterm-vibing-board
+git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 ./install.sh
 ```
 
-它把 `vibing` 启动器放进 `~/.iterm-vibing-board/bin/`（并加进 PATH），链接 Claude Code 的 skill 和 hook，把面板注册为 iTerm2 的 AutoLaunch 脚本。然后在 View › Toolbelt › Vibing 打开它。`git pull` 之后重跑一次；`./install.sh --uninstall` 全部撤掉。
+它把 `vibing` 启动器放进 `~/.iterm-vibe-board/bin/`（并加进 PATH），链接 Claude Code 的 skill 和 hook，把面板注册为 iTerm2 的 AutoLaunch 脚本。然后在 View › Toolbelt › Vibe Board 打开它。`git pull` 之后重跑一次；`./install.sh --uninstall` 全部撤掉。
 
-数据在 `~/.iterm-vibing-board/`：每件事一个 JSON 文件，放在 `projects/<key>/items/` 下，另有一张 pane 到会话的小表。设 `VIBING_HOME` 可以换目录。
+数据在 `~/.iterm-vibe-board/`：每件事一个 JSON 文件，放在 `projects/<key>/items/` 下，另有一张 pane 到会话的小表。设 `VIBING_HOME` 可以换目录。
 
 ## 要求
 

@@ -1,9 +1,9 @@
 ---
 name: vibing
-description: Keep the human's progress board (the Vibing panel in iTerm2) up to date. Use when you start a piece of work, when something unplanned comes up, when you are blocked, and when a step is done.
+description: Keep the human's progress board (the Vibe Board panel in iTerm2) up to date. Use when you start a piece of work, when something unplanned comes up, when you are blocked, and when a step is done.
 ---
 
-# Vibing: the human's progress board
+# Vibe Board: the human's progress board
 
 The board in the iTerm2 toolbelt belongs to the human who runs this terminal.
 Every session shares it. You update the items you push; you never keep a
