@@ -276,6 +276,7 @@ function row(item, depth, nChildren) {
   box.checked = item.status === "done";
   box.onchange = () => patch(item.id, { status: box.checked ? "done" : "todo" });
 
+  const num = el("span", "num", "#" + item.num);
   const title = el("span", "title", item.title);
   title.ondblclick = () => editTitle(title, item);
 
@@ -292,12 +293,19 @@ function row(item, depth, nChildren) {
   }
   for (const dep of item.depends_on) {
     const d = state.byId[dep];
-    if (d && d.status !== "done") badges.append(el("span", "badge dep", "⏳ " + (d.project !== item.project ? projectName(d.project) + ": " : "") + d.title));
+    if (!d || d.status === "done") continue;
+    const badge = el("span", "badge dep", "⏳ " + (d.project !== item.project ? projectName(d.project) + " " : "") + "#" + d.num);
+    badge.title = "waits for: " + d.title;
+    badges.append(badge);
   }
   if (item.driver) badges.append(driverChip(item));
-  if (item.created_by !== b.me && item.created_by !== item.driver) badges.append(el("span", "badge from", "from " + whoName(item.created_by)));
+  if (item.created_by !== b.me && item.created_by !== item.driver) {
+    const from = el("span", "badge from", "from " + whoName(item.created_by));
+    from.title = "created by " + whoName(item.created_by);
+    badges.append(from);
+  }
 
-  line.append(caret, box, title, badges);
+  line.append(caret, box, num, title, badges);
   line.onclick = (e) => {
     if (e.target.closest("button, input, select")) return;
     select(state.selected === item.id ? null : item.id);
@@ -329,8 +337,9 @@ function select(id) {
 function driverChip(item) {
   const pane = paneOf(item.driver);
   const alive = pane && pane.alive;
-  const chip = el("button", "badge driver" + (pane && !alive ? " ended" : ""), whoName(item.driver));
-  chip.title = alive ? "Jump to this pane" : "This session is gone; pick another driver below";
+  const name = whoName(item.driver);
+  const chip = el("button", "badge driver" + (pane && !alive ? " ended" : ""), name);
+  chip.title = name + (alive ? " — jump to this pane" : " — this session is gone; pick another driver below");
   chip.onclick = () => {
     if (alive) api("/api/jump", { method: "POST", body: JSON.stringify({ pane: pane.pane }) }).catch(showError);
     else {
@@ -380,7 +389,8 @@ function renderInspector() {
   box.replaceChildren();
 
   const head = el("div", "head");
-  head.append(el("b", "", item.title), el("span", "meta", `${item.origin} · by ${whoName(item.created_by)} · ${projectName(item.project)} · ${item.id}`));
+  head.append(el("b", "", `#${item.num} ${item.title}`), el("span", "meta", `${item.origin} · by ${whoName(item.created_by)} · ${projectName(item.project)}`));
+  head.title = "id " + item.id;
   box.append(head);
 
   if (preview) {

@@ -14,6 +14,7 @@ different items never touch each other and a torn write can lose at most one ite
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
@@ -177,10 +178,48 @@ def progress(item_id: str, items: dict) -> dict:
 
 
 def new_id(existing: dict) -> str:
+    """The stable key: a short random hash, so concurrent creators never collide."""
     while True:
         candidate = secrets.token_hex(3)
         if candidate not in existing:
             return candidate
+
+
+def _next_num(project: str) -> int:
+    """The human-facing number, sequential within a project. The only locked write."""
+    d = project_dir(project)
+    d.mkdir(parents=True, exist_ok=True)
+    with open(d / ".lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        counter = d / "counter"
+        n = int(counter.read_text()) + 1 if counter.exists() else 1
+        counter.write_text(str(n))
+        return n
+
+
+def ref(item: dict) -> str:
+    return f"#{item['num']}"
+
+
+def resolve(text: str, project: str | None = None, items: dict | None = None) -> str:
+    """Turn what a human types into an id: a hash, '#12' in a project, or 'name#12'."""
+    items = load_all() if items is None else items
+    if text in items:
+        return text
+    prefix, _, number = text.rpartition("#")
+    if not number.isdigit():
+        raise KeyError(text)
+    matches = [i for i in items.values() if i.get("num") == int(number)]
+    if prefix:
+        matches = [i for i in matches if os.path.basename(i["project"]) == prefix]
+    elif project and any(i["project"] == project for i in matches):
+        matches = [i for i in matches if i["project"] == project]
+    if not matches:
+        raise KeyError(text)
+    if len(matches) > 1:
+        names = ", ".join(sorted(os.path.basename(i["project"]) for i in matches))
+        raise ValueError(f"{text} exists in several projects ({names}); write name#{number}")
+    return matches[0]["id"]
 
 
 def create(title: str, project: str, **fields) -> dict:
@@ -192,6 +231,7 @@ def create(title: str, project: str, **fields) -> dict:
     item["title"] = title.strip()
     if not item["title"]:
         raise ValueError("title is empty")
+    item["num"] = _next_num(project)
     _write_json(_item_path(item), item)
     return item
 
@@ -206,8 +246,11 @@ def update(item_id: str, **fields) -> dict:
         item["done_at"] = now() if item["status"] == "done" else None
     item["updated_at"] = now()
     new_path = _item_path(item)
+    if new_path != old_path:  # moved to another project: numbers are per project
+        item["num"] = _next_num(item["project"])
+        new_path = _item_path(item)
     _write_json(new_path, item)
-    if new_path != old_path:  # moved to another project
+    if new_path != old_path:
         old_path.unlink()
     return item
 

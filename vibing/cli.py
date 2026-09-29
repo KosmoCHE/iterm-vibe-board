@@ -167,21 +167,34 @@ def _emit(item: dict, as_json: bool) -> None:
     if as_json:
         print(json.dumps(item, ensure_ascii=False))
     else:
-        print(item["id"])
+        print(store.ref(item))
+
+
+def _resolve(text: str, args: argparse.Namespace, project: str | None = None) -> str:
+    """'#12' means the caller's project unless --project or 'name#12' says otherwise."""
+    context = getattr(args, "project", None) or project or store.identity()[1]
+    return store.resolve(text, os.path.abspath(context) if context else None)
+
+
+def _resolved_fields(fields: dict, args: argparse.Namespace, project: str | None) -> dict:
+    if "depends_on" in fields:
+        fields["depends_on"] = [_resolve(d, args, project) for d in fields["depends_on"]]
+    return fields
 
 
 def cmd_add(args: argparse.Namespace) -> None:
     who, session_project = store.identity()
     project = args.project
-    if project is None and args.parent:
-        project = store.get(args.parent)["project"]
+    parent = _resolve(args.parent, args) if args.parent else None
+    if project is None and parent:
+        project = store.get(parent)["project"]
     project = project or session_project or os.getcwd()
-    fields = _fields(args)
+    fields = _resolved_fields(_fields(args), args, project)
     fields["origin"] = args.origin
     fields["created_by"] = who
     fields["driver"] = _driver(args.driver, who)
-    if args.parent:
-        fields["parent"] = args.parent
+    if parent:
+        fields["parent"] = parent
     if args.status:
         fields["status"] = args.status
     _emit(store.create(args.title, project, **fields), args.json)
@@ -189,7 +202,9 @@ def cmd_add(args: argparse.Namespace) -> None:
 
 def cmd_set(args: argparse.Namespace) -> None:
     who, _ = store.identity()
-    fields = _fields(args)
+    item_id = _resolve(args.id, args)
+    project = store.get(item_id)["project"]
+    fields = _resolved_fields(_fields(args), args, project)
     if args.title is not None:
         fields["title"] = args.title
     if args.status:
@@ -197,29 +212,29 @@ def cmd_set(args: argparse.Namespace) -> None:
     if args.driver is not None:
         fields["driver"] = _driver(args.driver, who)
     if args.parent is not None:
-        fields["parent"] = None if args.parent == "none" else args.parent
+        fields["parent"] = None if args.parent == "none" else _resolve(args.parent, args, project)
     if args.project:
         fields["project"] = args.project
     if not fields:
         raise ValueError("nothing to change")
-    _emit(store.update(args.id, **fields), args.json)
+    _emit(store.update(item_id, **fields), args.json)
 
 
 def cmd_claim(args: argparse.Namespace) -> None:
     who, _ = store.identity()
-    _emit(store.update(args.id, driver=who, status="doing"), args.json)
+    _emit(store.update(_resolve(args.id, args), driver=who, status="doing"), args.json)
 
 
 def cmd_done(args: argparse.Namespace) -> None:
-    _emit(store.update(args.id, status="done"), args.json)
+    _emit(store.update(_resolve(args.id, args), status="done"), args.json)
 
 
 def cmd_archive(args: argparse.Namespace) -> None:
-    _emit(store.archive(args.id), args.json)
+    _emit(store.archive(_resolve(args.id, args)), args.json)
 
 
 def cmd_show(args: argparse.Namespace) -> None:
-    print(json.dumps(store.get(args.id), ensure_ascii=False, indent=2))
+    print(json.dumps(store.get(_resolve(args.id, args)), ensure_ascii=False, indent=2))
 
 
 def cmd_list(args: argparse.Namespace) -> None:
@@ -269,8 +284,14 @@ def _print_item(item: dict, children: dict, everything: dict, depth: int) -> Non
         tags.append(summary)
     if item["waiting_for"]:
         tags.append("waits: " + item["waiting_for"])
+    for dep in item["depends_on"]:
+        d = everything.get(dep)
+        if d and d["status"] != "done":
+            same = d["project"] == item["project"]
+            tags.append("⏳" + ("" if same else os.path.basename(d["project"])) + store.ref(d))
     mark = STATUS_MARK[item["status"]]
-    line = f"{'  ' * depth}{item['id']}  {mark} {item['title']}{ORIGIN_MARK[item['origin']]}"
+    num = store.ref(item).rjust(5)
+    line = f"{'  ' * depth}{num}  {mark} {item['title']}{ORIGIN_MARK[item['origin']]}"
     if tags:
         line += "  [" + ", ".join(tags) + "]"
     print(line)

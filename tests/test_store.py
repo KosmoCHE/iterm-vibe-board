@@ -68,6 +68,23 @@ def test_identity_follows_the_pane(monkeypatch):
     assert store.current_pane() is None
 
 
+def test_numbers_are_sequential_per_project_and_resolve():
+    a1 = store.create("a1", "/tmp/a")
+    a2 = store.create("a2", "/tmp/a")
+    b1 = store.create("b1", "/tmp/b")
+    assert (a1["num"], a2["num"], b1["num"]) == (1, 2, 1)
+    assert store.resolve(a2["id"]) == a2["id"]
+    assert store.resolve("#2") == a2["id"]  # unique across projects
+    assert store.resolve("#1", project="/tmp/b") == b1["id"]
+    assert store.resolve("a#1") == a1["id"]
+    with pytest.raises(ValueError):
+        store.resolve("#1")  # ambiguous
+    with pytest.raises(KeyError):
+        store.resolve("#9")
+    moved = store.update(b1["id"], project="/tmp/a")
+    assert moved["num"] == 3  # renumbered in the new project
+
+
 def test_corrupt_item_file_loses_only_that_item(tmp_home):
     keep = store.create("keep", "/tmp/a")
     bad = tmp_home / "projects" / store.project_key("/tmp/a") / "items" / "bad.json"

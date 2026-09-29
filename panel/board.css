@@ -52,12 +52,14 @@ h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacin
 .caret { width: 12px; color: var(--muted); flex: none; }
 .caret:disabled { cursor: default; visibility: hidden; }
 .box { margin: 0; flex: none; position: relative; top: 1px; }
+.num { color: var(--muted); font-size: 10.5px; flex: none; }
 .title { flex: 1 1 auto; min-width: 8em; word-break: break-word; }
 .edit { flex: 1 1 auto; min-width: 8em; border: 1px solid var(--accent); border-radius: 3px; padding: 0 3px; background: var(--bg); }
 .detail { color: var(--muted); padding: 0 0 4px 22px; display: flex; flex-direction: column; }
 
 .badges { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-.badge { font-size: 10.5px; line-height: 1.3; padding: 0 5px; border-radius: 8px; background: var(--hover); color: var(--muted); white-space: nowrap; }
+.badge { font-size: 10.5px; line-height: 1.3; padding: 0 5px; border-radius: 8px; background: var(--hover); color: var(--muted);
+         white-space: nowrap; max-width: 11em; overflow: hidden; text-overflow: ellipsis; }
 .badge.incident { color: var(--danger); font-weight: 600; }
 .badge.insert { color: var(--warn); font-weight: 600; }
 .badge.status.doing { color: var(--accent); }
