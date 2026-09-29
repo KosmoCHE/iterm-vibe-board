@@ -7,6 +7,7 @@ which the panel reads from its own URL.
 from __future__ import annotations
 
 import json
+import os
 import secrets
 import shutil
 import subprocess
@@ -97,8 +98,9 @@ class BoardServer(ThreadingHTTPServer):
 class Handler(BaseHTTPRequestHandler):
     server: BoardServer
 
-    def log_message(self, *args) -> None:
-        pass
+    def log_message(self, fmt, *args) -> None:
+        if os.environ.get("VIBEBOARD_DEBUG"):  # request log on stderr, for diagnosing the panel
+            sys.stderr.write(f"{self.address_string()} {fmt % args}\n")
 
     # -- helpers ---------------------------------------------------------------
 

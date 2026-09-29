@@ -5,6 +5,7 @@ Runs inside iTerm2's Python runtime. The server itself is a plain subprocess of
 the same interpreter, so the panel keeps working if this script is restarted.
 """
 
+import asyncio
 import json
 import os
 import subprocess
@@ -46,6 +47,15 @@ async def main(connection):
     info = json.loads(proc.stdout.readline())
     base = f"http://127.0.0.1:{info['port']}"
     print("vibeboard panel:", info["url"], file=sys.stderr, flush=True)
+    # iTerm2 loads the URL once, when it creates the web view, and never retries: a page
+    # that fails to load stays blank until the tool is closed and reopened. So do not
+    # hand it the URL before the server answers.
+    for _ in range(50):
+        try:
+            urllib.request.urlopen(f"{base}/api/version?token={info['token']}", timeout=1)
+            break
+        except OSError:
+            await asyncio.sleep(0.1)
     await iterm2.tool.async_register_web_view_tool(
         connection, "Vibe Board", TOOL_ID, False, info["url"]
     )
