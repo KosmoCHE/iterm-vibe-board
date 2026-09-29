@@ -11,7 +11,8 @@
   --selected: color-mix(in srgb, AccentColor 22%, transparent);
   --warn: #ff9f0a;
   --danger: #ff453a;
-  --done: color-mix(in srgb, #34c759 12%, transparent); /* the tint of the done block */
+  --done: color-mix(in srgb, #34c759 6%, transparent); /* the tint of the done block */
+  --done-head: color-mix(in srgb, #34c759 14%, transparent); /* its Show/Hide line, a shade deeper */
 }
 
 * { box-sizing: border-box; }
@@ -44,8 +45,10 @@ h2 .path { font-weight: 400; }
 .row:hover { background: var(--hover); }
 .row.selected { background: var(--selected); }
 .row .line { display: grid; grid-template-columns: 16px min-content max-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
-.row.done, .row.fold { background: var(--done); }
-.row.done:hover, .row.fold:hover { background: color-mix(in srgb, #34c759 18%, transparent); }
+.row.done { background: var(--done); }
+.row.fold { background: var(--done-head); }
+.row.done:hover { background: var(--done-head); }
+.row.fold:hover { background: color-mix(in srgb, #34c759 20%, transparent); }
 .row.done .title { color: var(--muted); text-decoration: line-through; }
 .row.fold { color: var(--muted); font-size: 11px; }
 .row.fold .line { grid-template-columns: 16px 1fr; }
