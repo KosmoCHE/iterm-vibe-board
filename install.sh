@@ -50,7 +50,9 @@ EOF
 }
 
 runtime_python() { # iTerm2's own Python runtime, which runs AutoLaunch scripts
-  ls -d "$HOME/Library/Application Support/iTerm2/iterm2env/versions/"*/bin/python3 2>/dev/null | tail -1
+  # 3.7 installs it with uv under ~/.config/iterm2; older versions under Application Support.
+  ls -d "$HOME/.config/iterm2/AppSupport/uv/venvs/"*/bin/python3 \
+        "$HOME/Library/Application Support/iTerm2/iterm2env/versions/"*/bin/python3 2>/dev/null | tail -1
 }
 
 uninstall() {
@@ -82,7 +84,9 @@ EOF
 
   if ! command -v vibing >/dev/null 2>&1; then
     line="export PATH=\"$DATA/bin:\$PATH\""
-    if [ "$(basename "${SHELL:-}")" = zsh ] && ! grep -qF "$DATA/bin" "$HOME/.zshrc" 2>/dev/null; then
+    if grep -qF "$DATA/bin" "$HOME/.zshrc" 2>/dev/null; then
+      echo "~/.zshrc already puts $DATA/bin on PATH; open a new shell for \`vibing\` to work."
+    elif [ "$(basename "${SHELL:-}")" = zsh ]; then
       printf '\n# iterm-vibe-board\n%s\n' "$line" >> "$HOME/.zshrc"
       echo "Added $DATA/bin to PATH in ~/.zshrc; open a new shell for \`vibing\` to work."
     else
