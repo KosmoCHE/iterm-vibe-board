@@ -72,10 +72,10 @@ h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacin
 .add select { max-width: 9em; }
 
 .inspector { border-top: 1px solid var(--line); padding: 6px 8px; background: var(--hover); }
-.inspector.preview { opacity: .75; }
 .inspector .head { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 .inspector .head b { word-break: break-word; }
-.inspector .meta { color: var(--muted); white-space: nowrap; }
+.inspector .meta { color: var(--muted); white-space: nowrap; flex: 1; text-align: right; }
+.inspector .close { color: var(--muted); font-size: 14px; line-height: 1; padding: 0 2px; }
 .inspector .field { display: grid; grid-template-columns: 5.5em 1fr; gap: 4px; align-items: center; margin: 2px 0; }
 .inspector .field label { color: var(--muted); }
 .inspector input, .inspector select { width: 100%; border: 1px solid var(--line); border-radius: 3px; padding: 1px 4px; background: var(--bg); }

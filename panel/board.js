@@ -13,8 +13,7 @@ const state = {
   lastFocusPane: null,
   byId: {},
   children: {},
-  selected: null, // pinned in the inspector
-  hovered: null, // previewed in the inspector while nothing is pinned
+  selected: null, // shown in the inspector
   undo: [],
   error: "",
   notice: "",
@@ -318,14 +317,6 @@ function row(item, depth, nChildren) {
     if (item.waiting_for) detail.append(el("span", "", "waiting: " + item.waiting_for));
     r.append(detail);
   }
-  r.onmouseenter = () => {
-    state.hovered = item.id;
-    if (!state.selected) renderInspector();
-  };
-  r.onmouseleave = () => {
-    state.hovered = null;
-    if (!state.selected) renderInspector();
-  };
   return r;
 }
 
@@ -333,6 +324,8 @@ function select(id) {
   state.selected = id;
   document.querySelectorAll(".row").forEach((x) => x.classList.toggle("selected", x.dataset.id === id));
   renderInspector();
+  const row = id && document.querySelector(`.row[data-id="${id}"]`);
+  if (row) row.scrollIntoView({ block: "nearest" }); // the inspector just took space below
 }
 
 function driverChip(item) {
@@ -373,40 +366,34 @@ function editTitle(span, item) {
   input.select();
 }
 
-// --- inspector: hover previews, click pins, pinned is editable -------------------
+// --- inspector: shows the selected item; nothing appears on hover -----------------
 
 function renderInspector() {
   const box = $("#inspector");
-  const id = state.selected || state.hovered;
-  const item = id && state.byId[id];
+  const item = state.selected && state.byId[state.selected];
   if (!item) {
     box.hidden = true;
     box.replaceChildren();
     return;
   }
   if (box.contains(document.activeElement)) return;
-  const preview = !state.selected;
-  box.className = "inspector" + (preview ? " preview" : "");
   box.replaceChildren();
 
   const head = el("div", "head");
-  head.append(el("b", "", `#${item.num} ${item.title}`), el("span", "meta", `${item.origin} · by ${whoName(item.created_by)} · ${projectName(item.project)}`));
+  const meta = el("span", "meta", `${item.origin} · by ${whoName(item.created_by)} · ${projectName(item.project)}`);
+  const close = el("button", "close", "×");
+  close.title = "Close (Esc)";
+  close.onclick = () => select(null);
+  head.append(el("b", "", `#${item.num} ${item.title}`), meta, close);
   head.title = "id " + item.id;
   box.append(head);
 
-  if (preview) {
-    if (item.next) box.append(field("Next", el("span", "", item.next)));
-    if (item.waiting_for) box.append(field("Waiting for", el("span", "", item.waiting_for)));
-    if (item.due) box.append(field("Due", el("span", "", item.due)));
-    if (!item.next && !item.waiting_for && !item.due) box.append(el("div", "meta", "Click the row to pin and edit."));
-  } else {
-    const b = state.board;
-    box.append(field("Status", choice(b.statuses.map((s) => [s, b.labels[s]]), item.status, (v) => patch(item.id, { status: v }))));
-    box.append(field("Driver", choice(driverOptions(), item.driver || "", (v) => patch(item.id, { driver: v || null }), "insp-driver")));
-    box.append(field("Next", text(item.next, (v) => patch(item.id, { next: v }))));
-    box.append(field("Waiting for", text(item.waiting_for, (v) => patch(item.id, { waiting_for: v }))));
-    box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
-  }
+  const b = state.board;
+  box.append(field("Status", choice(b.statuses.map((s) => [s, b.labels[s]]), item.status, (v) => patch(item.id, { status: v }))));
+  box.append(field("Driver", choice(driverOptions(), item.driver || "", (v) => patch(item.id, { driver: v || null }), "insp-driver")));
+  box.append(field("Next", text(item.next, (v) => patch(item.id, { next: v }))));
+  box.append(field("Waiting for", text(item.waiting_for, (v) => patch(item.id, { waiting_for: v }))));
+  box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
   box.hidden = false;
 }
 
