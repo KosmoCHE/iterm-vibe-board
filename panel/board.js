@@ -295,16 +295,16 @@ function rows(item, kids, depth) {
   return out;
 }
 
-// One level of the tree: open items in order, then the done ones folded into a single line.
+// One level of the tree: the done items first, folded into a tinted block, then the open ones.
 function list(items, key, depth, kids) {
   const done = items.filter((i) => i.status === "done");
   const out = [];
-  items.filter((i) => i.status !== "done").forEach((i) => out.push(...rows(i, kids, depth)));
   if (done.length) {
     const k = state.tab + ":" + key;
     out.push(doneFold(done.length, k, depth));
     if (state.showDone[k]) done.forEach((i) => out.push(...rows(i, kids, depth)));
   }
+  items.filter((i) => i.status !== "done").forEach((i) => out.push(...rows(i, kids, depth)));
   return out;
 }
 
