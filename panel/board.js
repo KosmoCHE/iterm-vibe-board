@@ -16,6 +16,7 @@ const state = {
   selected: null, // shown in the inspector
   editing: false, // the inspector shows controls instead of text
   adding: false, // the add form is open (the + in the bottom bar)
+  down: false, // the server was unreachable; reload when it is back to pick up new assets
   undo: [],
   error: "",
   notice: "",
@@ -38,6 +39,7 @@ function api(path, options = {}) {
 async function poll() {
   try {
     const { version } = await api("/api/version");
+    if (state.down) return location.reload();
     if (version !== state.version) {
       state.board = await api("/api/board");
       state.version = version;
@@ -49,6 +51,7 @@ async function poll() {
       render();
     }
   } catch (e) {
+    if (e instanceof TypeError) state.down = true; // network failure: the server is away
     showError(e);
   }
 }
@@ -505,6 +508,9 @@ $("#plus").onclick = () => openAdd(!state.adding);
 $("#add-title").onkeydown = (e) => {
   if (e.key === "Escape") openAdd(false);
 };
+document.addEventListener("mousedown", (e) => {
+  if (state.adding && !e.target.closest("#add, #plus")) openAdd(false);
+});
 
 $("#add").onsubmit = (e) => {
   e.preventDefault();

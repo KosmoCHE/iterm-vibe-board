@@ -62,10 +62,14 @@ h2 { font-size: 11px; font-weight: 600; color: var(--muted); margin: 8px 8px 1px
 .badge.driver { color: var(--fg); border: 1px solid var(--line); background: none; }
 .badge.driver.ended { color: var(--muted); border-style: dashed; }
 
-/* add form, revealed by the + in the bottom bar */
-.add { display: flex; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--line); }
-.add input { flex: 1; min-width: 6em; }
-.add select { max-width: 9em; }
+/* add form: a popover above the + in the bottom bar */
+body { position: relative; }
+.add { position: absolute; left: 8px; bottom: 30px; width: min(20em, calc(100% - 16px)); z-index: 2;
+       display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--bg);
+       border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px color-mix(in srgb, CanvasText 30%, transparent); }
+.add[hidden] { display: none; }
+.add input { width: 100%; }
+.add select { width: 100%; }
 
 /* inspector: label column right-aligned, like Get Info */
 .inspector { border-top: 1px solid var(--line); padding: 6px 8px 4px; background: var(--hover); }

@@ -194,5 +194,26 @@ class Handler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.BAD_REQUEST, str(e))
 
 
-def serve(port: int = 0, token: str | None = None) -> BoardServer:
-    return BoardServer(port, token)
+DEFAULT_PORT = 47431
+
+
+def stored_token() -> str:
+    """One token per machine, kept on disk so restarts keep the panel URL stable."""
+    path = store.home() / "token"
+    if path.is_file():
+        return path.read_text(encoding="utf-8").strip()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    token = secrets.token_urlsafe(24)
+    path.write_text(token, encoding="utf-8")
+    path.chmod(0o600)
+    return token
+
+
+def serve(port: int = DEFAULT_PORT, token: str | None = None) -> BoardServer:
+    token = token or stored_token()
+    try:
+        return BoardServer(port, token)
+    except OSError:
+        if port == 0:
+            raise
+        return BoardServer(0, token)  # the usual port is taken: any free one
