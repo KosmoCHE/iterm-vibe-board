@@ -41,9 +41,9 @@ h2 { font-size: 11px; font-weight: 600; color: var(--muted); margin: 8px 8px 1px
 .row { padding: 0 8px 0 calc(8px + var(--depth, 0) * 14px); }
 .row:hover { background: var(--hover); }
 .row.selected { background: var(--selected); }
-.row .line { display: grid; grid-template-columns: 12px min-content max-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
+.row .line { display: grid; grid-template-columns: 14px min-content max-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
 .row.done .title { color: var(--muted); text-decoration: line-through; }
-.caret { width: 12px; color: var(--muted); font-size: 10px; }
+.caret { width: 14px; color: var(--muted); font-size: 13px; position: relative; top: 1px; }
 .caret:disabled { visibility: hidden; }
 .box { margin: 0; position: relative; top: 2px; }
 .num { color: var(--muted); font-size: 10.5px; }
