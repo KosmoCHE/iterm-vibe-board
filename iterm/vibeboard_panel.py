@@ -37,7 +37,8 @@ async def main(connection):
     env.pop("ITERM2_COOKIE", None)
     env.pop("ITERM2_KEY", None)
     proc = subprocess.Popen(
-        [sys.executable, "-m", "vibeboard", "serve", "--json"],
+        [sys.executable, "-m", "vibeboard", "serve", "--json", "--exit-with-stdin"],
+        stdin=subprocess.PIPE,  # closes when this script dies, and the server exits with it
         stdout=subprocess.PIPE,
         env=env,
         text=True,
@@ -50,18 +51,26 @@ async def main(connection):
     )
 
     app = await iterm2.async_get_app(connection)
-    session = (
-        app.current_terminal_window and app.current_terminal_window.current_tab.current_session
-    )
-    if session:
-        post(base, info["token"], "/api/focus", {"pane": session.session_id})
 
+    async def focused_pane():
+        """The session in the key window's current tab, after a fresh look at the hierarchy."""
+        await app.async_refresh()
+        window = app.current_terminal_window
+        session = window and window.current_tab and window.current_tab.current_session
+        return session.session_id if session else None
+
+    pane = await focused_pane()
+    post(base, info["token"], "/api/focus", {"pane": pane})
+
+    # Any focus event may move the user to another pane: a new session in the same tab,
+    # another tab, another window, or iTerm2 coming to the front.
     async with iterm2.FocusMonitor(connection) as monitor:
         while True:
-            update = await monitor.async_get_next_update()
-            changed = update.active_session_changed
-            if changed:
-                post(base, info["token"], "/api/focus", {"pane": changed.session_id})
+            await monitor.async_get_next_update()
+            now = await focused_pane()
+            if now != pane:
+                pane = now
+                post(base, info["token"], "/api/focus", {"pane": pane})
 
 
 iterm2.run_forever(main)

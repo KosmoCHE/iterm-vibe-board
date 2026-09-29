@@ -145,7 +145,9 @@ class Handler(BaseHTTPRequestHandler):
         elif not self._authorized(query):
             self._error(HTTPStatus.UNAUTHORIZED, "bad token")
         elif url.path == "/api/version":
-            self._json({"version": store.version(), "assets": assets_version()})
+            self._json(
+                {"version": store.version(), "assets": assets_version(), "focus": self.server.focus}
+            )
         elif url.path == "/api/board":
             self._json(self.server.board())
         else:

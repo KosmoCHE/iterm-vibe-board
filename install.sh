@@ -57,6 +57,7 @@ runtime_python() { # iTerm2's own Python runtime, which runs AutoLaunch scripts
 
 uninstall() {
   pkill -f "$PANEL" 2>/dev/null || true
+  pkill -f "vibeboard serve" 2>/dev/null || true
   rm -f "$BIN" "$SKILL" "$PANEL"
   [ -f "$SETTINGS" ] && hooks uninstall
   echo "Removed the launcher, the skill, the hooks and the AutoLaunch script."

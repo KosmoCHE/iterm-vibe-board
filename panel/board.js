@@ -38,13 +38,14 @@ function api(path, options = {}) {
 
 async function poll() {
   try {
-    const { version, assets } = await api("/api/version");
+    const { version, assets, focus } = await api("/api/version");
     if (state.down) return location.reload();
     if (state.assets && assets !== state.assets) return location.reload(); // panel files changed
     state.assets = assets;
-    if (version !== state.version) {
+    if (version !== state.version || focus !== state.focusPane) { // data on disk or the focused pane
       state.board = await api("/api/board");
       state.version = version;
+      state.focusPane = focus;
       state.error = "";
       render();
     }

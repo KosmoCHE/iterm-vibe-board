@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 from collections import defaultdict
 from pathlib import Path
 
@@ -109,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     sv.add_argument("--token", help="default: the one stored in the data directory")
     sv.add_argument(
         "--json", action="store_true", help="print one JSON line with the url, then serve"
+    )
+    sv.add_argument(
+        "--exit-with-stdin",
+        action="store_true",
+        help="stop when stdin closes, so a launcher that dies takes the server with it",
     )
     sv.set_defaults(func=cmd_serve)
 
@@ -343,10 +349,17 @@ def cmd_serve(args: argparse.Namespace) -> None:
         )
     else:
         print(f"vibeboard panel: {server.url}", flush=True)
+    if args.exit_with_stdin:
+        threading.Thread(target=_exit_when_stdin_closes, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+
+
+def _exit_when_stdin_closes() -> None:
+    sys.stdin.read()  # blocks until the other end goes away, even by kill -9
+    os._exit(0)
 
 
 if __name__ == "__main__":
