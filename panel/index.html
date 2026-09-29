@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vibing</title>
+  <link rel="stylesheet" href="/static/board.css">
+</head>
+<body>
+  <header>
+    <nav class="tabs">
+      <button data-tab="global">Global</button>
+      <button data-tab="project">Project</button>
+      <button data-tab="session">Session</button>
+    </nav>
+    <div id="scope" class="scope"></div>
+  </header>
+  <section id="waiting" class="waiting" hidden></section>
+  <main id="tree"></main>
+  <form id="add" class="add" autocomplete="off">
+    <select id="add-origin" title="origin">
+      <option value="plan">plan</option>
+      <option value="incident">incident</option>
+      <option value="insert">insert</option>
+    </select>
+    <input id="add-title" placeholder="Add an item…">
+    <select id="add-project" title="project"></select>
+  </form>
+  <footer id="status"></footer>
+  <div id="tip" class="tip" hidden></div>
+  <script src="/static/board.js"></script>
+</body>
+</html>
