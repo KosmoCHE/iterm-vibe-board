@@ -15,8 +15,10 @@
     </nav>
     <div id="scope" class="scope"></div>
   </header>
-  <section id="waiting" class="waiting" hidden></section>
-  <main id="tree"></main>
+  <main id="main">
+    <section id="waiting" class="waiting" hidden></section>
+    <div id="tree"></div>
+  </main>
   <form id="add" class="add" autocomplete="off">
     <select id="add-origin" title="origin">
       <option value="plan">plan</option>
@@ -26,8 +28,11 @@
     <input id="add-title" placeholder="Add an item…">
     <select id="add-project" title="project"></select>
   </form>
-  <footer id="status"></footer>
-  <div id="tip" class="tip" hidden></div>
+  <section id="inspector" class="inspector" hidden></section>
+  <footer>
+    <span id="status"></span>
+    <button id="undo" hidden>Undo</button>
+  </footer>
   <script src="/static/board.js"></script>
 </body>
 </html>

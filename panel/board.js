@@ -2,6 +2,7 @@
 
 const TOKEN = new URLSearchParams(location.search).get("token") || "";
 const $ = (sel) => document.querySelector(sel);
+const UNDO_DEPTH = 20;
 
 const state = {
   board: null,
@@ -11,7 +12,11 @@ const state = {
   pickedPane: localStorage.getItem("vibing.pane") || "", // browser preview only
   byId: {},
   children: {},
+  selected: null, // pinned in the inspector
+  hovered: null, // previewed in the inspector while nothing is pinned
+  undo: [],
   error: "",
+  notice: "",
 };
 
 // --- server -----------------------------------------------------------------
@@ -42,12 +47,38 @@ async function poll() {
   }
 }
 
-function patch(id, fields) {
-  return api("/api/items/" + id, { method: "PATCH", body: JSON.stringify(fields) }).then(poll).catch(showError);
+async function patch(id, fields, undoable = true) {
+  const before = state.byId[id];
+  try {
+    await api("/api/items/" + id, { method: "PATCH", body: JSON.stringify(fields) });
+    if (undoable && before) {
+      const previous = {};
+      for (const key of Object.keys(fields)) previous[key] = before[key];
+      state.undo.push({ id, fields: previous, title: before.title });
+      if (state.undo.length > UNDO_DEPTH) state.undo.shift();
+      setNotice(`Changed “${before.title}”`);
+    }
+    await poll();
+  } catch (e) {
+    showError(e);
+  }
+}
+
+async function undo() {
+  const last = state.undo.pop();
+  if (!last) return;
+  await patch(last.id, last.fields, false);
+  setNotice(`Undid the change to “${last.title}”`);
 }
 
 function showError(e) {
   state.error = e.message || String(e);
+  renderStatus();
+}
+
+function setNotice(text) {
+  state.notice = text;
+  state.error = "";
   renderStatus();
 }
 
@@ -88,6 +119,15 @@ function projectName(path) {
   return p ? p.name : path.split("/").pop();
 }
 
+function driverOptions() {
+  const b = state.board;
+  const options = [["", "unassigned"], [b.me, "me"]];
+  Object.values(b.panes)
+    .filter((p) => p.session && !p.ended_at)
+    .forEach((p) => options.push([p.session, whoName(p.session)]));
+  return options;
+}
+
 function progress(id) {
   const out = { total: 0, plan_done: 0, plan_total: 0, incidents: 0, inserts: 0 };
   const stack = [...(state.children[id] || [])];
@@ -109,6 +149,11 @@ function isOpen(id) {
   return key in state.fold ? state.fold[key] : state.tab !== "global";
 }
 
+function typing() {
+  const a = document.activeElement;
+  return a && (a.classList.contains("edit") || $("#inspector").contains(a));
+}
+
 // --- rendering ------------------------------------------------------------------
 
 function el(tag, cls = "", text) {
@@ -119,12 +164,12 @@ function el(tag, cls = "", text) {
 }
 
 function render() {
-  const active = document.activeElement;
-  if (active && (active.classList.contains("edit") || active.classList.contains("reassign"))) return;
+  if (typing()) return; // never rebuild under the cursor
   const b = state.board;
   state.byId = Object.fromEntries(b.items.map((i) => [i.id, i]));
   state.children = {};
   for (const it of b.items) if (it.parent) (state.children[it.parent] = state.children[it.parent] || []).push(it);
+  if (state.selected && !state.byId[state.selected]) state.selected = null;
 
   renderTabs();
   renderScope();
@@ -161,6 +206,7 @@ function render() {
   } else roots.forEach((i) => tree.append(...rows(i, kids, 0)));
 
   renderAdd();
+  renderInspector();
   renderStatus();
 }
 
@@ -212,7 +258,7 @@ function rows(item, kids, depth) {
 
 function row(item, depth, nChildren) {
   const b = state.board;
-  const r = el("div", "row" + (item.status === "done" ? " done" : ""));
+  const r = el("div", "row" + (item.status === "done" ? " done" : "") + (item.id === state.selected ? " selected" : ""));
   r.dataset.id = item.id;
   r.style.setProperty("--depth", depth);
   const line = el("div", "line");
@@ -252,6 +298,10 @@ function row(item, depth, nChildren) {
   if (item.created_by !== b.me && item.created_by !== item.driver) badges.append(el("span", "badge from", "from " + whoName(item.created_by)));
 
   line.append(caret, box, title, badges);
+  line.onclick = (e) => {
+    if (e.target.closest("button, input, select")) return;
+    select(state.selected === item.id ? null : item.id);
+  };
   r.append(line);
   if (state.tab === "session" && (item.next || item.waiting_for)) {
     const detail = el("div", "detail");
@@ -259,39 +309,37 @@ function row(item, depth, nChildren) {
     if (item.waiting_for) detail.append(el("span", "", "waiting: " + item.waiting_for));
     r.append(detail);
   }
-  r.onmouseenter = () => showTip(item, r);
-  r.onmouseleave = hideTip;
+  r.onmouseenter = () => {
+    state.hovered = item.id;
+    if (!state.selected) renderInspector();
+  };
+  r.onmouseleave = () => {
+    state.hovered = null;
+    if (!state.selected) renderInspector();
+  };
   return r;
+}
+
+function select(id) {
+  state.selected = id;
+  document.querySelectorAll(".row").forEach((x) => x.classList.toggle("selected", x.dataset.id === id));
+  renderInspector();
 }
 
 function driverChip(item) {
   const pane = paneOf(item.driver);
-  const chip = el("button", "badge driver" + (pane && !pane.alive ? " ended" : ""), whoName(item.driver));
-  chip.title = pane && pane.alive ? "Click to jump to this pane; ⌥-click to reassign" : "This session is gone; click to reassign";
-  chip.onclick = (e) => {
-    if (!e.altKey && pane && pane.alive) api("/api/jump", { method: "POST", body: JSON.stringify({ pane: pane.pane }) }).catch(showError);
-    else reassign(chip, item);
+  const alive = pane && pane.alive;
+  const chip = el("button", "badge driver" + (pane && !alive ? " ended" : ""), whoName(item.driver));
+  chip.title = alive ? "Jump to this pane" : "This session is gone; pick another driver below";
+  chip.onclick = () => {
+    if (alive) api("/api/jump", { method: "POST", body: JSON.stringify({ pane: pane.pane }) }).catch(showError);
+    else {
+      select(item.id);
+      const d = $("#insp-driver");
+      if (d) d.focus();
+    }
   };
   return chip;
-}
-
-function reassign(anchor, item) {
-  const b = state.board;
-  const sel = el("select", "reassign");
-  const options = [["", "unassigned"], [b.me, "me"]];
-  Object.values(b.panes)
-    .filter((p) => p.session && !p.ended_at)
-    .forEach((p) => options.push([p.session, whoName(p.session)]));
-  options.forEach(([value, text]) => {
-    const o = el("option", "", text);
-    o.value = value;
-    o.selected = value === (item.driver || "");
-    sel.append(o);
-  });
-  sel.onchange = () => patch(item.id, { driver: sel.value || null });
-  sel.onblur = () => render();
-  anchor.replaceWith(sel);
-  sel.focus();
 }
 
 function editTitle(span, item) {
@@ -315,27 +363,90 @@ function editTitle(span, item) {
   input.select();
 }
 
-function showTip(item, rowEl) {
-  const tip = $("#tip");
-  const parts = [];
-  if (item.next) parts.push(["Next", item.next]);
-  if (item.waiting_for) parts.push(["Waiting for", item.waiting_for]);
-  if (item.due) parts.push(["Due", item.due]);
-  parts.push(["Origin", item.origin], ["Created by", whoName(item.created_by)], ["Project", projectName(item.project)], ["Id", item.id]);
-  tip.replaceChildren(
-    ...parts.map(([k, v]) => {
-      const d = el("div");
-      d.append(el("b", "", k + " "), document.createTextNode(v));
-      return d;
-    })
-  );
-  const rect = rowEl.getBoundingClientRect();
-  tip.style.top = rect.bottom + window.scrollY + 2 + "px";
-  tip.hidden = false;
+// --- inspector: hover previews, click pins, pinned is editable -------------------
+
+function renderInspector() {
+  const box = $("#inspector");
+  const id = state.selected || state.hovered;
+  const item = id && state.byId[id];
+  if (!item) {
+    box.hidden = true;
+    box.replaceChildren();
+    return;
+  }
+  if (box.contains(document.activeElement)) return;
+  const preview = !state.selected;
+  box.className = "inspector" + (preview ? " preview" : "");
+  box.replaceChildren();
+
+  const head = el("div", "head");
+  head.append(el("b", "", item.title), el("span", "meta", `${item.origin} · by ${whoName(item.created_by)} · ${projectName(item.project)} · ${item.id}`));
+  box.append(head);
+
+  if (preview) {
+    if (item.next) box.append(field("Next", el("span", "", item.next)));
+    if (item.waiting_for) box.append(field("Waiting for", el("span", "", item.waiting_for)));
+    if (item.due) box.append(field("Due", el("span", "", item.due)));
+    if (!item.next && !item.waiting_for && !item.due) box.append(el("div", "meta", "Click the row to pin and edit."));
+  } else {
+    const b = state.board;
+    box.append(field("Status", choice(b.statuses.map((s) => [s, b.labels[s]]), item.status, (v) => patch(item.id, { status: v }))));
+    box.append(field("Driver", choice(driverOptions(), item.driver || "", (v) => patch(item.id, { driver: v || null }), "insp-driver")));
+    box.append(field("Next", text(item.next, (v) => patch(item.id, { next: v }))));
+    box.append(field("Waiting for", text(item.waiting_for, (v) => patch(item.id, { waiting_for: v }))));
+    box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
+  }
+  box.hidden = false;
 }
 
-function hideTip() {
-  $("#tip").hidden = true;
+function field(label, control) {
+  const f = el("div", "field");
+  f.append(el("label", "", label), control);
+  return f;
+}
+
+function choice(options, value, onChange, id) {
+  const sel = el("select");
+  if (id) sel.id = id;
+  options.forEach(([v, text]) => {
+    const o = el("option", "", text);
+    o.value = v;
+    o.selected = v === value;
+    sel.append(o);
+  });
+  sel.onchange = () => {
+    sel.blur(); // so the next render is not blocked by a focused control
+    onChange(sel.value);
+  };
+  return sel;
+}
+
+function text(value, onCommit) {
+  const input = el("input");
+  input.value = value || "";
+  const commit = () => {
+    if (input.value.trim() !== (value || "")) onCommit(input.value.trim());
+  };
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") input.blur();
+    if (e.key === "Escape") {
+      input.value = value || "";
+      input.blur();
+    }
+  };
+  input.onblur = commit;
+  return input;
+}
+
+function date(value, onCommit) {
+  const input = el("input");
+  input.type = "date";
+  input.value = value || "";
+  input.onchange = () => {
+    input.blur();
+    onCommit(input.value);
+  };
+  return input;
 }
 
 function renderAdd() {
@@ -354,7 +465,10 @@ function renderAdd() {
 }
 
 function renderStatus() {
-  $("#status").textContent = state.error;
+  const s = $("#status");
+  s.textContent = state.error || state.notice;
+  s.className = state.error ? "error" : "";
+  $("#undo").hidden = !state.undo.length;
 }
 
 // --- wiring ---------------------------------------------------------------------
@@ -363,8 +477,20 @@ document.querySelectorAll(".tabs button").forEach((btn) => {
   btn.onclick = () => {
     state.tab = btn.dataset.tab;
     localStorage.setItem("vibing.tab", state.tab);
+    state.selected = null;
     if (state.board) render();
   };
+});
+
+$("#undo").onclick = undo;
+
+document.addEventListener("keydown", (e) => {
+  const inField = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement && document.activeElement.tagName);
+  if ((e.metaKey || e.ctrlKey) && e.key === "z" && !inField) {
+    e.preventDefault();
+    undo();
+  }
+  if (e.key === "Escape" && !inField && state.selected) select(null);
 });
 
 $("#add").onsubmit = (e) => {
@@ -384,6 +510,7 @@ $("#add").onsubmit = (e) => {
   api("/api/items", { method: "POST", body: JSON.stringify(body) })
     .then(() => {
       $("#add-title").value = "";
+      setNotice(`Added “${title}”`);
       poll();
     })
     .catch(showError);
