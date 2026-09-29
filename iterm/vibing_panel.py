@@ -38,11 +38,12 @@ async def main(connection):
     )
     info = json.loads(proc.stdout.readline())
     base = f"http://127.0.0.1:{info['port']}"
+    print("vibing panel:", info["url"], file=sys.stderr, flush=True)
     await iterm2.tool.async_register_web_view_tool(
         connection, "Vibing", TOOL_ID, False, info["url"]
     )
 
-    app = await iterm2.async_get_app()
+    app = await iterm2.async_get_app(connection)
     session = (
         app.current_terminal_window and app.current_terminal_window.current_tab.current_session
     )

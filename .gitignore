@@ -13,3 +13,6 @@ build/
 
 # macOS
 .DS_Store
+
+# local dev environment with the iterm2 package
+.venv/
