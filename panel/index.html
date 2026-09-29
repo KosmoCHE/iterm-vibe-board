@@ -23,15 +23,11 @@
   </main>
   <section id="inspector" class="inspector" hidden></section>
   <form id="add" class="add" autocomplete="off" hidden>
-    <select id="add-origin" title="origin">
-      <option value="plan">plan</option>
-      <option value="incident">incident</option>
-      <option value="insert">insert</option>
-    </select>
+    <div id="add-under" class="under" hidden></div>
     <input id="add-title" placeholder="New item, Enter to add, Esc to close">
-    <select id="add-parent" title="under which item"></select>
     <select id="add-project" title="project"></select>
   </form>
+  <div id="menu" class="menu" hidden></div>
   <footer id="footer" hidden>
     <span id="status"></span>
     <button id="undo" type="button" hidden>Undo</button>

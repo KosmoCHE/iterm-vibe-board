@@ -44,6 +44,8 @@ h2 .path { font-weight: 400; }
 .row.selected { background: var(--selected); }
 .row .line { display: grid; grid-template-columns: 16px min-content max-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
 .row.done .title { color: var(--muted); text-decoration: line-through; }
+.row.fold { color: var(--muted); }
+.row.fold .line { grid-template-columns: 16px 1fr; }
 /* the triangle sits centred on the first line of text, whatever wraps below it */
 .caret { width: 16px; height: 1.45em; align-self: start; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 .caret::before { content: ""; display: block; width: 0; height: 0;
@@ -75,6 +77,16 @@ body { position: relative; }
        border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px color-mix(in srgb, CanvasText 30%, transparent); }
 .add[hidden] { display: none; }
 .add input { width: 100%; }
+.add .under { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.add .under[hidden] { display: none; }
+
+/* context menu on a row */
+.menu { position: absolute; z-index: 3; min-width: 12em; padding: 4px; background: var(--bg);
+        border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px color-mix(in srgb, CanvasText 30%, transparent);
+        display: flex; flex-direction: column; }
+.menu[hidden] { display: none; }
+.menu button { text-align: left; padding: 3px 8px; border-radius: 5px; }
+.menu button:hover { background: var(--selected); }
 .add select { width: 100%; }
 
 /* inspector: label column right-aligned, like Get Info */

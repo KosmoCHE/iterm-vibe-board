@@ -13,7 +13,10 @@ const state = {
   children: {},
   selected: null, // shown in the inspector
   editing: false, // the inspector shows controls instead of text
-  adding: false, // the add form is open (the + in the bottom bar)
+  adding: false, // the add form is open (the + at the top right)
+  addParent: null, // item the add form adds a step under (from the context menu)
+  showDone: {}, // "tab:key": true when that level's done items are unfolded
+  menu: null, // item the context menu is open for
   filter: "", // Global only: "" | "project:<path>" | "who:<session>"
   down: false, // the server was unreachable; reload when it is back to pick up new assets
   assets: null, // version of the panel files the page was loaded with
@@ -204,9 +207,9 @@ function render() {
       const h = el("h2", "project", projectName(project));
       h.append(" ", el("span", "path", projectPath(project)));
       tree.append(h);
-      byProject[project].forEach((i) => tree.append(...rows(i, kids, 0)));
+      tree.append(...list(byProject[project], "root:" + project, 0, kids));
     }
-  } else roots.forEach((i) => tree.append(...rows(i, kids, 0)));
+  } else tree.append(...list(roots, "root", 0, kids));
 
   renderAdd();
   renderInspector();
@@ -269,8 +272,35 @@ function filterSelect() {
 function rows(item, kids, depth) {
   const children = kids[item.id] || [];
   const out = [row(item, depth, children.length)];
-  if (children.length && isOpen(item.id)) children.forEach((c) => out.push(...rows(c, kids, depth + 1)));
+  if (children.length && isOpen(item.id)) out.push(...list(children, item.id, depth + 1, kids));
   return out;
+}
+
+// One level of the tree: open items in order, then the done ones folded into a single line.
+function list(items, key, depth, kids) {
+  const done = items.filter((i) => i.status === "done");
+  const out = [];
+  items.filter((i) => i.status !== "done").forEach((i) => out.push(...rows(i, kids, depth)));
+  if (done.length) {
+    const k = state.tab + ":" + key;
+    out.push(doneFold(done.length, k, depth));
+    if (state.showDone[k]) done.forEach((i) => out.push(...rows(i, kids, depth)));
+  }
+  return out;
+}
+
+function doneFold(n, key, depth) {
+  const r = el("div", "row fold");
+  r.style.setProperty("--depth", depth);
+  const line = el("div", "line");
+  const caret = el("button", "caret" + (state.showDone[key] ? " open" : ""));
+  line.append(caret, el("span", "", `✓ ${n} done`));
+  line.onclick = () => {
+    state.showDone[key] = !state.showDone[key];
+    render();
+  };
+  r.append(line);
+  return r;
 }
 
 function row(item, depth, nChildren) {
@@ -341,8 +371,40 @@ function row(item, depth, nChildren) {
     if (e.target.closest("button, input, select")) return;
     select(item.id, true);
   };
+  r.oncontextmenu = (e) => {
+    e.preventDefault();
+    openMenu(item, e.clientX, e.clientY);
+  };
   r.append(line);
   return r;
+}
+
+// --- context menu: the few actions a right-click on a row offers ---
+
+function openMenu(item, x, y) {
+  const m = $("#menu");
+  m.replaceChildren();
+  const action = (label, fn) => {
+    const b = el("button", "", label);
+    b.onclick = () => {
+      closeMenu();
+      fn();
+    };
+    m.append(b);
+  };
+  action(`Add a step under #${item.num}`, () => openAdd(true, item.id));
+  action(`Copy #${item.num}`, () =>
+    navigator.clipboard.writeText("#" + item.num).then(() => setNotice(`Copied #${item.num}`), showError)
+  );
+  state.menu = item.id;
+  m.hidden = false;
+  m.style.left = Math.min(x, innerWidth - m.offsetWidth - 8) + "px";
+  m.style.top = Math.min(y, innerHeight - m.offsetHeight - 8) + "px";
+}
+
+function closeMenu() {
+  state.menu = null;
+  $("#menu").hidden = true;
 }
 
 function select(id, edit = false) {
@@ -493,42 +555,23 @@ function renderAdd() {
     sel.append(o);
   });
   if (f.project) sel.value = f.project;
-  sel.hidden = state.tab !== "global";
+  const parent = state.addParent && state.byId[state.addParent];
+  if (parent) sel.value = parent.project;
+  sel.hidden = state.tab !== "global" || Boolean(parent);
+  const under = $("#add-under");
+  under.hidden = !parent;
+  under.textContent = parent ? `under #${parent.num} ${parent.title}` : "";
+  $("#add-title").placeholder = parent ? "New step, Enter to add, Esc to close" : "New item, Enter to add, Esc to close";
   const possible = state.tab === "global" ? Object.keys(b.projects).length > 0 : Boolean(f.project);
   $("#plus").disabled = !possible;
   $("#add").hidden = !(state.adding && possible);
 }
 
-function openAdd(open) {
+function openAdd(open, parent = null) {
   state.adding = open;
+  state.addParent = open ? parent : null;
   renderAdd();
-  if (open) {
-    // + with an item selected means "a step under it"
-    const sel = state.selected && state.byId[state.selected];
-    renderParentOptions(sel ? sel.id : "");
-    $("#add-title").focus();
-  }
-}
-
-function addProject() {
-  return state.tab === "global" ? $("#add-project").value : focus().project;
-}
-
-function renderParentOptions(chosen) {
-  const sel = $("#add-parent");
-  sel.replaceChildren(new Option("top level", ""));
-  const project = addProject();
-  const walk = (parent, depth) => {
-    (parent ? state.children[parent] || [] : state.board.items.filter((i) => !i.parent))
-      .filter((i) => i.project === project && i.status !== "done")
-      .forEach((i) => {
-        sel.append(new Option(`${"\u2003".repeat(depth)}under #${i.num} ${i.title}`, i.id));
-        walk(i.id, depth + 1);
-      });
-  };
-  walk(null, 0);
-  sel.value = chosen;
-  if (sel.value !== chosen) sel.value = "";
+  if (open) $("#add-title").focus();
 }
 
 function renderStatus() {
@@ -562,12 +605,15 @@ document.addEventListener("keydown", (e) => {
 });
 
 $("#plus").onclick = () => openAdd(!state.adding);
-$("#add-project").onchange = () => renderParentOptions("");
 $("#add-title").onkeydown = (e) => {
   if (e.key === "Escape") openAdd(false);
 };
 document.addEventListener("mousedown", (e) => {
   if (state.adding && !e.target.closest("#add, #plus")) openAdd(false);
+  if (state.menu && !e.target.closest("#menu")) closeMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && state.menu) closeMenu();
 });
 
 $("#add").onsubmit = (e) => {
@@ -575,14 +621,14 @@ $("#add").onsubmit = (e) => {
   const f = focus();
   const title = $("#add-title").value.trim();
   if (!title) return;
-  const project = addProject();
+  const parent = state.addParent;
+  const project = parent ? state.byId[parent].project : state.tab === "global" ? $("#add-project").value : f.project;
   if (!project) return showError(new Error("pick a project first"));
-  const parent = $("#add-parent").value || null;
   const body = {
     title,
     project,
     parent,
-    origin: $("#add-origin").value,
+    origin: "plan",
     created_by: state.board.me,
     driver: state.tab === "session" ? f.session : null,
   };
