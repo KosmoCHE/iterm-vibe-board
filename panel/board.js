@@ -411,9 +411,6 @@ function openMenu(item, x, y) {
     m.append(b);
   };
   action(`Add a step under #${item.num}`, () => openAdd(true, item.id));
-  action(`Copy #${item.num}`, () =>
-    navigator.clipboard.writeText("#" + item.num).then(() => setNotice(`Copied #${item.num}`), showError)
-  );
   action(`Delete #${item.num}`, () => remove(item));
   state.menu = item.id;
   m.hidden = false;
