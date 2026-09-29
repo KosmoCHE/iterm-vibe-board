@@ -10,6 +10,7 @@ import json
 import secrets
 import shutil
 import subprocess
+import sys
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -56,7 +57,9 @@ class BoardServer(ThreadingHTTPServer):
                 s["id"].upper(): s.get("name") or s.get("title") or ""
                 for s in json.loads(out.stdout)
             }
-        except (OSError, ValueError, subprocess.TimeoutExpired):
+        except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+            if not names:  # say it once, not every refresh
+                print(f"vibing: it2 session list failed: {e!r}", file=sys.stderr, flush=True)
             names = {}
         self._names = (names, time.time())
         return names

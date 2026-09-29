@@ -29,7 +29,11 @@ def post(url: str, token: str, path: str, data: dict) -> None:
 
 
 async def main(connection):
+    # The API cookie in our environment is bound to this script's connection; `it2`
+    # inside the server must not present it again, or iTerm2 refuses it.
     env = dict(os.environ, PYTHONPATH=ROOT)
+    env.pop("ITERM2_COOKIE", None)
+    env.pop("ITERM2_KEY", None)
     proc = subprocess.Popen(
         [sys.executable, "-m", "vibing", "serve", "--json"],
         stdout=subprocess.PIPE,
