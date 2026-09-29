@@ -9,7 +9,8 @@ const state = {
   version: null,
   tab: localStorage.getItem("vibing.tab") || "global",
   fold: JSON.parse(localStorage.getItem("vibing.fold") || "{}"),
-  pickedPane: localStorage.getItem("vibing.pane") || "", // browser preview only
+  override: null, // {pane, session, project}: look at something other than the focused pane
+  lastFocusPane: null,
   byId: {},
   children: {},
   selected: null, // pinned in the inspector
@@ -40,6 +41,10 @@ async function poll() {
       state.board = await api("/api/board");
       state.version = version;
       state.error = "";
+      if (state.board.focus.pane !== state.lastFocusPane) {
+        state.lastFocusPane = state.board.focus.pane; // the user moved: follow again
+        state.override = null;
+      }
       render();
     }
   } catch (e) {
@@ -85,11 +90,13 @@ function setNotice(text) {
 // --- model helpers ------------------------------------------------------------
 
 function focus() {
-  const b = state.board;
-  if (b.focus.pane) return b.focus;
-  const pane = b.panes[state.pickedPane];
-  if (!pane || pane.ended_at) return { pane: state.pickedPane || null, session: null, project: null };
-  return { pane: pane.pane, session: pane.session, project: pane.project };
+  return state.override ? { ...state.board.focus, ...state.override } : state.board.focus;
+}
+
+function focusOn(pane) {
+  const info = state.board.panes[pane];
+  state.override = info ? { pane, session: info.session, project: info.project } : null;
+  render();
 }
 
 function scopeItems() {
@@ -214,30 +221,30 @@ function renderTabs() {
 
 function renderScope() {
   const b = state.board;
-  const f = focus();
   const s = $("#scope");
   s.replaceChildren();
-  if (!b.focus.pane) {
-    // No iTerm2 script pushing focus (browser preview): let the user pick a pane.
-    const sel = el("select");
-    const none = el("option", "", "pick a pane…");
-    none.value = "";
-    sel.append(none);
-    Object.values(b.panes).forEach((p) => {
-      const o = el("option", "", whoName(p.session || p.pane) + (p.alive ? "" : " (gone)"));
-      o.value = p.pane;
-      sel.append(o);
-    });
-    sel.value = state.pickedPane;
-    sel.onchange = () => {
-      state.pickedPane = sel.value;
-      localStorage.setItem("vibing.pane", sel.value);
-      render();
-    };
-    s.append(sel);
+  if (state.tab === "global") return;
+  // Project and Session follow the focused pane; the picker looks elsewhere until the user moves.
+  const sel = el("select");
+  const follow = el("option", "", b.focus.pane ? "follow the focused pane" : "pick a pane…");
+  follow.value = "";
+  sel.append(follow);
+  const panes = Object.values(b.panes).filter((p) => p.session);
+  panes.sort((x, y) => (y.alive - x.alive) || whoName(x.session).localeCompare(whoName(y.session)));
+  panes.forEach((p) => {
+    const label = state.tab === "project" ? projectName(p.project) + " — " + whoName(p.session) : whoName(p.session);
+    const o = el("option", "", label + (p.alive ? "" : " (gone)"));
+    o.value = p.pane;
+    sel.append(o);
+  });
+  sel.value = state.override ? state.override.pane : "";
+  sel.onchange = () => focusOn(sel.value);
+  s.append(sel);
+  const f = focus();
+  if (!state.override) {
+    if (state.tab === "project") s.append(el("span", "where", f.project ? projectName(f.project) : "no project here"));
+    if (state.tab === "session") s.append(el("span", "where", f.session ? whoName(f.session) : "no session here"));
   }
-  if (state.tab === "project") s.append(el("span", "where", f.project ? projectName(f.project) : "no project for this pane"));
-  if (state.tab === "session") s.append(el("span", "where", f.session ? whoName(f.session) : "no session in this pane"));
 }
 
 function rows(item, kids, depth) {
