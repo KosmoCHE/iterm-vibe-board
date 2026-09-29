@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vibing"
+version = "0.0.0"
+description = "Human-first task board in the iTerm2 toolbelt, shared with your AI coding agents"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-2.0-or-later" }
+
+[project.scripts]
+vibing = "vibing.cli:main"
+
+[tool.setuptools]
+packages = ["vibing"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = ["drafts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

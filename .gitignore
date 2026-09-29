@@ -1,0 +1,15 @@
+# local working notes, not part of the project
+.grill/
+drafts/
+research/
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+build/
+*.egg-info/
+
+# macOS
+.DS_Store
