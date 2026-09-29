@@ -2,12 +2,12 @@
 
 Two pieces, nothing else:
 
-- **A skill** (`skills/vibing-board/SKILL.md`) that tells the agent how to use the
+- **A skill** (`skills/vibeboard/SKILL.md`) that tells the agent how to use the
   board: plan first, register the unplanned before handling it, say what comes
-  next after a detour. `vibing instructions` prints the same text, so the
+  next after a detour. `vibeboard instructions` prints the same text, so the
   skill is the single source.
 - **Two hooks** (`settings.json`) that record which pane a session runs in.
-  `vibing hook` reads the hook event from stdin: `SessionStart` maps the pane
+  `vibeboard hook` reads the hook event from stdin: `SessionStart` maps the pane
   to the session and its launch directory, `SessionEnd` marks it ended. It
   never prints and never fails the session.
 
@@ -22,8 +22,8 @@ and adds the two hooks to `~/.claude/settings.json`, pointing at the launcher
 in `~/.iterm-vibe-board/bin/`. By hand, it is the same two steps:
 
 ```sh
-ln -s "$PWD/adapters/claude-code/skills/vibing-board" ~/.claude/skills/vibing-board
-# merge settings.json into ~/.claude/settings.json, with `vibing` on the hook shell's PATH
+ln -s "$PWD/adapters/claude-code/skills/vibeboard" ~/.claude/skills/vibeboard
+# merge settings.json into ~/.claude/settings.json, with `vibeboard` on the hook shell's PATH
 ```
 
 Start a new Claude Code session in an iTerm2 pane; the Session tab of the

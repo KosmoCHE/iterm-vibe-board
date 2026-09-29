@@ -1,5 +1,5 @@
 ---
-name: vibing-board
+name: vibeboard
 description: Keep the human's progress board (the Vibe Board panel in iTerm2) up to date. Use when you start a piece of work, when something unplanned comes up, when you are blocked, and when a step is done.
 ---
 
@@ -12,7 +12,7 @@ private list.
 ## Three rules
 
 1. **Plan before you start.** Write the plan as sub-steps of the item you were
-   given (`vibing add "…" --parent ID`), then `vibing claim` the item.
+   given (`vibeboard add "…" --parent ID`), then `vibeboard claim` the item.
 2. **Register anything unplanned before handling it.** Ask: *if I ignored
    this, could the original plan still finish?*
    - No → `--origin incident`. A problem in the way: a failing build, a missing
@@ -22,18 +22,18 @@ private list.
 
    Never handle it silently, whoever noticed it first.
 3. **After a detour, say which planned step comes next**, both in the chat
-   and with `vibing set ID --next "…"`.
+   and with `vibeboard set ID --next "…"`.
 
 ## Commands
 
 ```
-vibing list [--all | --project PATH] [--mine]      what is on the board
-vibing show ID
-vibing add "title" [--parent ID] [--origin plan|incident|insert] [--desc "…"]
+vibeboard list [--all | --project PATH] [--mine]      what is on the board
+vibeboard show ID
+vibeboard add "title" [--parent ID] [--origin plan|incident|insert] [--desc "…"]
                    [--next "…"] [--waiting "…"] [--due 2026-10-03]
-vibing claim ID                                     you push this item; status → doing
-vibing set ID --desc "…" | --next "…" | --waiting "…" | --status S | --depends ID,ID
-vibing done ID
+vibeboard claim ID                                     you push this item; status → doing
+vibeboard set ID --desc "…" | --next "…" | --waiting "…" | --status S | --depends ID,ID
+vibeboard done ID
 ```
 
 Add `--json` to any command for machine-readable output. `#12` names item 12

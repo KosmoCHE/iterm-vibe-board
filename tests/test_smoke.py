@@ -1,5 +1,5 @@
-import vibing
+import vibeboard
 
 
 def test_package_has_a_version():
-    assert vibing.__version__
+    assert vibeboard.__version__

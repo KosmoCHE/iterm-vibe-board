@@ -26,7 +26,7 @@ CI runs the same three commands on macOS.
 [Conventional Commits](https://www.conventionalcommits.org/), in English:
 
 ```
-feat(cli): add `vibing claim`
+feat(cli): add `vibeboard claim`
 fix(store): release the lock when a write fails
 docs: explain the origin field
 ```
@@ -37,7 +37,7 @@ Versions follow [SemVer](https://semver.org/); changes go into
 ## Layout
 
 ```
-vibing/               store, CLI, local HTTP server
+vibeboard/               store, CLI, local HTTP server
 panel/                toolbelt page
 iterm/                AutoLaunch script
 adapters/<agent>/     one directory per supported agent
@@ -47,6 +47,6 @@ tests/
 ## Adding an agent adapter
 
 An adapter is a directory under `adapters/` that teaches one agent to use the
-`vibing` CLI: how it learns which pane it is in, when it registers and
+`vibeboard` CLI: how it learns which pane it is in, when it registers and
 releases items, and the rule text it loads. Look at `adapters/claude-code/`
 first; the core never needs to know a new agent exists.

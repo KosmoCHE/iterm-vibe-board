@@ -14,13 +14,15 @@ import urllib.request
 import iterm2
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))  # AutoLaunch holds a symlink
-TOOL_ID = "com.github.kosmoche.vibing"
+TOOL_ID = "com.github.kosmoche.vibeboard"
 
 
 def post(url: str, token: str, path: str, data: dict) -> None:
     body = json.dumps(data).encode()
     req = urllib.request.Request(
-        url + path, data=body, headers={"Content-Type": "application/json", "X-Vibing-Token": token}
+        url + path,
+        data=body,
+        headers={"Content-Type": "application/json", "X-Vibeboard-Token": token},
     )
     try:
         urllib.request.urlopen(req, timeout=2).read()
@@ -35,14 +37,14 @@ async def main(connection):
     env.pop("ITERM2_COOKIE", None)
     env.pop("ITERM2_KEY", None)
     proc = subprocess.Popen(
-        [sys.executable, "-m", "vibing", "serve", "--json"],
+        [sys.executable, "-m", "vibeboard", "serve", "--json"],
         stdout=subprocess.PIPE,
         env=env,
         text=True,
     )
     info = json.loads(proc.stdout.readline())
     base = f"http://127.0.0.1:{info['port']}"
-    print("vibing panel:", info["url"], file=sys.stderr, flush=True)
+    print("vibeboard panel:", info["url"], file=sys.stderr, flush=True)
     await iterm2.tool.async_register_web_view_tool(
         connection, "Vibe Board", TOOL_ID, False, info["url"]
     )

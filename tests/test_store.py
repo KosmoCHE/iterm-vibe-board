@@ -3,12 +3,12 @@ import json
 
 import pytest
 
-from vibing import cli, store
+from vibeboard import cli, store
 
 
 @pytest.fixture(autouse=True)
 def tmp_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIBING_HOME", str(tmp_path))
+    monkeypatch.setenv("VIBEBOARD_HOME", str(tmp_path))
     monkeypatch.delenv("ITERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TMUX", raising=False)

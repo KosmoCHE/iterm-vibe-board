@@ -7,8 +7,8 @@ const UNDO_DEPTH = 20;
 const state = {
   board: null,
   version: null,
-  tab: localStorage.getItem("vibing.tab") || "global",
-  fold: JSON.parse(localStorage.getItem("vibing.fold") || "{}"),
+  tab: localStorage.getItem("vibeboard.tab") || "global",
+  fold: JSON.parse(localStorage.getItem("vibeboard.fold") || "{}"),
   byId: {},
   children: {},
   selected: null, // shown in the inspector
@@ -283,7 +283,7 @@ function row(item, depth, nChildren) {
   caret.disabled = !nChildren;
   caret.onclick = () => {
     state.fold[state.tab + ":" + item.id] = !isOpen(item.id);
-    localStorage.setItem("vibing.fold", JSON.stringify(state.fold));
+    localStorage.setItem("vibeboard.fold", JSON.stringify(state.fold));
     render();
   };
 
@@ -517,7 +517,7 @@ function renderStatus() {
 document.querySelectorAll(".tabs button").forEach((btn) => {
   btn.onclick = () => {
     state.tab = btn.dataset.tab;
-    localStorage.setItem("vibing.tab", state.tab);
+    localStorage.setItem("vibeboard.tab", state.tab);
     state.selected = null;
     if (state.board) render();
   };

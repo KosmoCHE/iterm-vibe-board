@@ -1,4 +1,4 @@
-"""The `vibing` command: the only write path, for humans at a shell and for agents."""
+"""The `vibeboard` command: the only write path, for humans at a shell and for agents."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from vibing import store
+from vibeboard import store
 
-# The agent-facing rules live in the Claude Code skill; `vibing instructions` prints them.
-SKILL = Path(__file__).resolve().parent.parent / "adapters/claude-code/skills/vibing-board/SKILL.md"
+# The agent-facing rules live in the Claude Code skill; `vibeboard instructions` prints them.
+SKILL = Path(__file__).resolve().parent.parent / "adapters/claude-code/skills/vibeboard/SKILL.md"
 
 STATUS_MARK = {
     "todo": "·",
@@ -30,14 +30,16 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.func(args) or 0
     except KeyError as e:
-        print(f"vibing: no such item {e}", file=sys.stderr)
+        print(f"vibeboard: no such item {e}", file=sys.stderr)
     except ValueError as e:
-        print(f"vibing: {e}", file=sys.stderr)
+        print(f"vibeboard: {e}", file=sys.stderr)
     return 1
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="vibing", description="Progress board in the iTerm2 toolbelt.")
+    p = argparse.ArgumentParser(
+        prog="vibeboard", description="Progress board in the iTerm2 toolbelt."
+    )
     sub = p.add_subparsers(dest="command", required=True)
 
     a = sub.add_parser("add", help="add an item")
@@ -329,7 +331,7 @@ def cmd_instructions(args: argparse.Namespace) -> None:
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
-    from vibing.server import serve
+    from vibeboard.server import serve
 
     server = serve(
         **{k: v for k, v in (("port", args.port), ("token", args.token)) if v is not None}
@@ -340,7 +342,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
             flush=True,
         )
     else:
-        print(f"vibing panel: {server.url}", flush=True)
+        print(f"vibeboard panel: {server.url}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

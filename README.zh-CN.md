@@ -2,7 +2,7 @@
 
 住在 iTerm2 侧栏里的进度看板，以人为中心，你和每个 pane 里跑着的 AI coding agent 一起维护。
 
-> **状态：pre-alpha。**从 clone 里跑，面板、`vibing` 命令行和 Claude Code 适配层都能用；还没有安装脚本，数据格式也可能再改。
+> **状态：pre-alpha。**从 clone 里跑，面板、`vibeboard` 命令行和 Claude Code 适配层都能用；还没有安装脚本，数据格式也可能再改。
 
 [English](README.md)
 
@@ -32,7 +32,7 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 
   父级那一行显示 `●2/4 · +0/1 · ⚡0/1`：每类来源各自的「做完/总数」，只数直接子步骤。
 - **你在面板里改**：勾一下、单击看详情、双击改、右上角 `+` 新增、⌘Z 撤销。点会话标记跳到那个 pane；会话结束标记变灰，事可以交给别的 pane。
-- **agent 用 `vibing` 命令行改**。`vibing instructions` 打印规则：动手前把计划写成子步骤；计划外的事先登记再处理；绕路结束后说一句下一条计划是什么。会话靠它所在的 pane 识别。
+- **agent 用 `vibeboard` 命令行改**。`vibeboard instructions` 打印规则：动手前把计划写成子步骤；计划外的事先登记再处理；绕路结束后说一句下一条计划是什么。会话靠它所在的 pane 识别。
 - **Claude Code 适配层**：一个装着这些规则的 skill，加两个 hook（`SessionStart`、`SessionEnd`）把 pane 对应到会话。见 [adapters/claude-code](adapters/claude-code/README.md)。
 
 ## 试一下
@@ -42,9 +42,9 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 ./install.sh
 ```
 
-它把 `vibing` 启动器放进 `~/.iterm-vibe-board/bin/`（并加进 PATH），链接 Claude Code 的 skill 和 hook，把面板注册为 iTerm2 的 AutoLaunch 脚本。然后在 View › Toolbelt › Vibe Board 打开它。`git pull` 之后重跑一次；`./install.sh --uninstall` 全部撤掉。
+它把 `vibeboard` 启动器放进 `~/.iterm-vibe-board/bin/`（并加进 PATH），链接 Claude Code 的 skill 和 hook，把面板注册为 iTerm2 的 AutoLaunch 脚本。然后在 View › Toolbelt › Vibe Board 打开它。`git pull` 之后重跑一次；`./install.sh --uninstall` 全部撤掉。
 
-数据在 `~/.iterm-vibe-board/`：每件事一个 JSON 文件，放在 `projects/<key>/items/` 下，另有一张 pane 到会话的小表。设 `VIBING_HOME` 可以换目录。
+数据在 `~/.iterm-vibe-board/`：每件事一个 JSON 文件，放在 `projects/<key>/items/` 下，另有一张 pane 到会话的小表。设 `VIBEBOARD_HOME` 可以换目录。
 
 ## 要求
 
@@ -59,7 +59,7 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 ## 目录
 
 ```
-vibing/               Python 包：存储、命令行、本地 HTTP 服务（只用标准库）
+vibeboard/               Python 包：存储、命令行、本地 HTTP 服务（只用标准库）
 panel/                侧栏页面：纯 HTML、CSS、JS，无构建
 iterm/                注册面板的 iTerm2 AutoLaunch 脚本
 adapters/claude-code/ Claude Code 的 skill 和 hook

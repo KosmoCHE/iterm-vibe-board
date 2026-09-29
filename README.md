@@ -3,7 +3,7 @@
 A human-first progress board that lives in the iTerm2 toolbelt, shared by you and
 every AI coding agent running in your panes.
 
-> **Status: pre-alpha.** The panel, the `vibing` CLI and the Claude Code
+> **Status: pre-alpha.** The panel, the `vibeboard` CLI and the Claude Code
 > adapter work when run from a clone. There is no installer yet and the data
 > format may still change.
 
@@ -53,7 +53,7 @@ items are yours, agents are just the ones pushing them.
   edit, `+` at the top right to add, ⌘Z to undo. Click a session badge to jump
   to that pane. When a session ends its badge greys out and you can hand the
   item to another pane.
-- **Agents edit through the `vibing` CLI.** `vibing instructions` prints the
+- **Agents edit through the `vibeboard` CLI.** `vibeboard instructions` prints the
   rules: write the plan as sub-steps before starting, register anything
   unplanned before handling it, say which planned step comes next once a
   detour is done. A session is recognised by the pane it runs in.
@@ -68,14 +68,14 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 ./install.sh
 ```
 
-This puts the `vibing` launcher in `~/.iterm-vibe-board/bin/` (and on your
+This puts the `vibeboard` launcher in `~/.iterm-vibe-board/bin/` (and on your
 PATH), links the Claude Code skill and hooks, and registers the panel as an
 iTerm2 AutoLaunch script. Then enable it under View › Toolbelt › Vibe Board.
 Rerun after `git pull`; `./install.sh --uninstall` takes it all out again.
 
 Data lives in `~/.iterm-vibe-board/`: one JSON file per item under
 `projects/<key>/items/`, plus a small map from panes to sessions. Set
-`VIBING_HOME` to use another directory.
+`VIBEBOARD_HOME` to use another directory.
 
 ## Requirements
 
@@ -93,7 +93,7 @@ need.
 ## Layout
 
 ```
-vibing/               Python package: store, CLI, local HTTP server (stdlib only)
+vibeboard/               Python package: store, CLI, local HTTP server (stdlib only)
 panel/                the toolbelt page: plain HTML, CSS and JS, no build step
 iterm/                the iTerm2 AutoLaunch script that registers the panel
 adapters/claude-code/ skill and hooks for Claude Code

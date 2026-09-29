@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vibing"
+name = "vibeboard"
 version = "0.0.0"
 description = "Human-first progress board in the iTerm2 toolbelt, shared with your AI coding agents"
 readme = "README.md"
@@ -11,10 +11,10 @@ requires-python = ">=3.9"
 license = { text = "GPL-2.0-or-later" }
 
 [project.scripts]
-vibing = "vibing.cli:main"
+vibeboard = "vibeboard.cli:main"
 
 [tool.setuptools]
-packages = ["vibing"]
+packages = ["vibeboard"]
 
 [tool.ruff]
 line-length = 100

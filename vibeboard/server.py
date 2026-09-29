@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from vibing import store
+from vibeboard import store
 
 PANEL = Path(__file__).resolve().parent.parent / "panel"
 IT2 = shutil.which("it2") or "/Applications/iTerm.app/Contents/Resources/utilities/it2"
@@ -59,7 +59,7 @@ class BoardServer(ThreadingHTTPServer):
             }
         except (OSError, ValueError, subprocess.TimeoutExpired) as e:
             if not names:  # say it once, not every refresh
-                print(f"vibing: it2 session list failed: {e!r}", file=sys.stderr, flush=True)
+                print(f"vibeboard: it2 session list failed: {e!r}", file=sys.stderr, flush=True)
             names = {}
         self._names = (names, time.time())
         return names
@@ -117,7 +117,7 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": message}, status)
 
     def _authorized(self, query: dict) -> bool:
-        token = query.get("token", [None])[0] or self.headers.get("X-Vibing-Token")
+        token = query.get("token", [None])[0] or self.headers.get("X-Vibeboard-Token")
         return token is not None and secrets.compare_digest(token, self.server.token)
 
     def _body(self) -> dict:

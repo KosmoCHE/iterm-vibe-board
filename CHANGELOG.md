@@ -13,7 +13,7 @@ follows [Semantic Versioning](https://semver.org/).
 - Store: one JSON file per item under `~/.iterm-vibe-board/projects/<key>/`,
   hash ids plus per-project numbers, statuses, origins, drivers, sub-steps and
   cross-project dependencies.
-- `vibing` CLI: `add`, `list`, `show`, `set`, `claim`, `done`, `archive`,
+- `vibeboard` CLI: `add`, `list`, `show`, `set`, `claim`, `done`, `archive`,
   `pane`, `hook`, `serve`, `instructions`.
 - Panel in the iTerm2 toolbelt with Global, Project and Session tabs, a local
   stdlib-only HTTP server and an AutoLaunch script that registers it.
