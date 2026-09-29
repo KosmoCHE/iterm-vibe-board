@@ -39,22 +39,22 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 
 ```sh
 git clone https://github.com/KosmoCHE/iterm-vibing-board && cd iterm-vibing-board
-pip install -e .                                  # 把 vibing 放进 PATH，没有依赖
-python3 -m venv .venv && .venv/bin/pip install iterm2
-.venv/bin/python iterm/vibing_panel.py            # 保持运行，然后 View › Toolbelt › Vibing
+./install.sh
 ```
+
+它把 `vibing` 启动器放进 `~/.iterm-vibing-board/bin/`（并加进 PATH），链接 Claude Code 的 skill 和 hook，把面板注册为 iTerm2 的 AutoLaunch 脚本。然后在 View › Toolbelt › Vibing 打开它。`git pull` 之后重跑一次；`./install.sh --uninstall` 全部撤掉。
 
 数据在 `~/.iterm-vibing-board/`：每件事一个 JSON 文件，放在 `projects/<key>/items/` 下，另有一张 pane 到会话的小表。设 `VIBING_HOME` 可以换目录。
 
 ## 要求
 
-- macOS，iTerm2 3.5 以上，开启 Python API（Settings › General › Magic）。
-- Python 3.9 以上。
+- macOS，iTerm2 3.5 以上，开启 Python API（Settings › General › Magic），并装好它的 Python 运行时（Scripts › Manage › Install Python Runtime），面板脚本靠它跑。
+- 命令行要 Python 3.9 以上，Xcode 命令行工具自带的那个就够。
 - Claude Code（第一个 agent 适配层）。
 
 ## 第一版不做
 
-安装脚本和 AutoLaunch 配置、图或甘特视图、Homebrew、其他 agent 的适配。数据模型已经给这些预留了字段。
+图或甘特视图、Homebrew、其他 agent 的适配。数据模型已经给这些预留了字段。
 
 ## 目录
 
@@ -64,6 +64,7 @@ panel/                侧栏页面：纯 HTML、CSS、JS，无构建
 iterm/                注册面板的 iTerm2 AutoLaunch 脚本
 adapters/claude-code/ Claude Code 的 skill 和 hook
 tests/                pytest，只测核心逻辑
+install.sh            把上面这些链接到位
 ```
 
 ## 许可证

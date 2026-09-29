@@ -19,3 +19,5 @@ follows [Semantic Versioning](https://semver.org/).
   stdlib-only HTTP server and an AutoLaunch script that registers it.
 - Claude Code adapter: a skill with the three rules and two hooks that map
   panes to sessions.
+- `install.sh`: launcher, skill, hooks and AutoLaunch script in one go, with
+  `--uninstall`.

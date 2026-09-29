@@ -15,16 +15,15 @@ The pane is taken from `TERM_SESSION_ID`, the way iTerm2's own Claude Code
 integration does it. Inside tmux that variable names whichever pane started
 the server, so the hook records nothing there.
 
-## Install by hand
+## Install
 
-Until `install.sh` exists:
+`./install.sh` at the top of the clone links the skill into `~/.claude/skills/`
+and adds the two hooks to `~/.claude/settings.json`, pointing at the launcher
+in `~/.iterm-vibing-board/bin/`. By hand, it is the same two steps:
 
 ```sh
-# the skill: Claude Code loads ~/.claude/skills/<name>/SKILL.md
 ln -s "$PWD/adapters/claude-code/skills/vibing" ~/.claude/skills/vibing
-
-# the hooks: merge settings.json into ~/.claude/settings.json
-# (`vibing` must be on the PATH of the shell that runs hooks; `pip install -e .` does that)
+# merge settings.json into ~/.claude/settings.json, with `vibing` on the hook shell's PATH
 ```
 
 Start a new Claude Code session in an iTerm2 pane; the Session tab of the

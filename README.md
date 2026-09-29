@@ -65,10 +65,13 @@ items are yours, agents are just the ones pushing them.
 
 ```sh
 git clone https://github.com/KosmoCHE/iterm-vibing-board && cd iterm-vibing-board
-pip install -e .                                  # puts `vibing` on your PATH; no dependencies
-python3 -m venv .venv && .venv/bin/pip install iterm2
-.venv/bin/python iterm/vibing_panel.py            # keep it running, then View › Toolbelt › Vibing
+./install.sh
 ```
+
+This puts the `vibing` launcher in `~/.iterm-vibing-board/bin/` (and on your
+PATH), links the Claude Code skill and hooks, and registers the panel as an
+iTerm2 AutoLaunch script. Then enable it under View › Toolbelt › Vibing.
+Rerun after `git pull`; `./install.sh --uninstall` takes it all out again.
 
 Data lives in `~/.iterm-vibing-board/`: one JSON file per item under
 `projects/<key>/items/`, plus a small map from panes to sessions. Set
@@ -76,15 +79,15 @@ Data lives in `~/.iterm-vibing-board/`: one JSON file per item under
 
 ## Requirements
 
-- macOS with iTerm2 3.5 or newer and the Python API enabled
-  (Settings › General › Magic).
-- Python 3.9 or newer.
+- macOS with iTerm2 3.5 or newer, the Python API enabled
+  (Settings › General › Magic) and its Python runtime installed
+  (Scripts › Manage › Install Python Runtime); it runs the panel script.
+- Python 3.9 or newer for the CLI (the one Xcode's command line tools ship is enough).
 - Claude Code, for the first agent adapter.
 
 ## Not in the first version
 
-Installer and AutoLaunch setup, a graph or Gantt view, Homebrew formula,
-adapters for other agents. The data model already reserves the fields these
+A graph or Gantt view, Homebrew formula, adapters for other agents. The data model already reserves the fields these
 need.
 
 ## Layout
@@ -95,6 +98,7 @@ panel/                the toolbelt page: plain HTML, CSS and JS, no build step
 iterm/                the iTerm2 AutoLaunch script that registers the panel
 adapters/claude-code/ skill and hooks for Claude Code
 tests/                pytest, core logic only
+install.sh            links all of the above into place
 ```
 
 ## Development

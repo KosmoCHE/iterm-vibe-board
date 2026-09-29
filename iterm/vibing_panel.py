@@ -13,7 +13,7 @@ import urllib.request
 
 import iterm2
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))  # AutoLaunch holds a symlink
 TOOL_ID = "com.github.kosmoche.vibing"
 
 
