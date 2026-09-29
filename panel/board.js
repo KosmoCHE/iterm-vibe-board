@@ -143,21 +143,18 @@ function driverOptions() {
 }
 
 function progress(id) {
-  // Over direct children: steps done/total (planned + inserted), how many were inserted,
-  // and how many incidents are still open. Incidents are detours, not steps.
-  const out = { steps: 0, done: 0, inserted: 0, incidents: 0, incidentsOpen: 0 };
+  // Per origin over direct children: {origin: [done, total]}.
+  const out = {};
+  for (const origin of state.board.origins) out[origin] = [0, 0];
   for (const it of state.children[id] || []) {
-    if (it.origin === "incident") {
-      out.incidents++;
-      if (it.status !== "done") out.incidentsOpen++;
-    } else {
-      out.steps++;
-      if (it.status === "done") out.done++;
-      if (it.origin === "insert") out.inserted++;
-    }
+    out[it.origin][1]++;
+    if (it.status === "done") out[it.origin][0]++;
   }
   return out;
 }
+
+const PROGRESS_MARK = { plan: "●", incident: "⚡", insert: "+" };
+const PROGRESS_WORDS = { plan: "planned", incident: "issues", insert: "added" };
 
 function isOpen(id) {
   const key = state.tab + ":" + id;
@@ -292,15 +289,10 @@ function row(item, depth, nChildren) {
     badges.append(el("span", "badge status " + item.status, label));
   }
   const p = progress(item.id);
-  if (p.steps || p.incidentsOpen) {
-    let s = p.steps ? `${p.done}/${p.steps}` : "";
-    if (p.inserted) s += ` +${p.inserted}`;
-    if (p.incidentsOpen) s += ` ⚡${p.incidentsOpen}`;
-    const progressBadge = el("span", "badge progress", s.trim());
-    const words = [];
-    if (p.steps) words.push(`${p.done} of ${p.steps} steps done` + (p.inserted ? ` (${p.inserted} added along the way)` : ""));
-    if (p.incidents) words.push(`${p.incidentsOpen} of ${p.incidents} incident${p.incidents > 1 ? "s" : ""} still open`);
-    progressBadge.title = words.join(" · ");
+  const parts = Object.entries(p).filter(([, [, total]]) => total);
+  if (parts.length) {
+    const progressBadge = el("span", "badge progress", parts.map(([o, [d, t]]) => `${PROGRESS_MARK[o]}${d}/${t}`).join(" · "));
+    progressBadge.title = parts.map(([o, [d, t]]) => `${PROGRESS_WORDS[o]} ${d} of ${t} ${o === "incident" ? "resolved" : "done"}`).join(" · ");
     badges.append(progressBadge);
   }
   for (const dep of item.depends_on) {

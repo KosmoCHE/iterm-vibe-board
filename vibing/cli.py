@@ -46,6 +46,7 @@ STATUS_MARK = {
     "done": "✓",
 }
 ORIGIN_MARK = {"plan": "", "incident": " ⚡", "insert": " +"}
+PROGRESS_MARK = {"plan": "●", "incident": "⚡", "insert": "+"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -275,13 +276,9 @@ def _print_item(item: dict, children: dict, everything: dict, depth: int) -> Non
     if item["driver"]:
         tags.append("@" + item["driver"][:8])
     p = store.progress(item["id"], everything)
-    if p["steps"] or p["incidents_open"]:
-        summary = f"{p['done']}/{p['steps']}" if p["steps"] else ""
-        if p["inserted"]:
-            summary += f" +{p['inserted']}"
-        if p["incidents_open"]:
-            summary += f" ⚡{p['incidents_open']}"
-        tags.append(summary.strip())
+    summary = " ".join(f"{PROGRESS_MARK[o]}{d}/{t}" for o, (d, t) in p.items() if t)
+    if summary:
+        tags.append(summary)
     if item["waiting_for"]:
         tags.append("waits: " + item["waiting_for"])
     for dep in item["depends_on"]:

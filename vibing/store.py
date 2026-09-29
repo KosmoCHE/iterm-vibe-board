@@ -155,19 +155,12 @@ def get(item_id: str) -> dict:
 
 
 def progress(item_id: str, items: dict) -> dict:
-    """Over direct children: steps done/total (planned + inserted), how many were inserted,
-    and how many incidents are still open. Incidents are detours, not steps."""
-    out = {"steps": 0, "done": 0, "inserted": 0, "incidents": 0, "incidents_open": 0}
+    """Per origin over direct children: {origin: [done, total]}."""
+    out = {origin: [0, 0] for origin in ORIGINS}
     for it in items.values():
-        if it["parent"] != item_id:
-            continue
-        if it["origin"] == "incident":
-            out["incidents"] += 1
-            out["incidents_open"] += it["status"] != "done"
-        else:
-            out["steps"] += 1
-            out["done"] += it["status"] == "done"
-            out["inserted"] += it["origin"] == "insert"
+        if it["parent"] == item_id:
+            out[it["origin"]][1] += 1
+            out[it["origin"]][0] += it["status"] == "done"
     return out
 
 
