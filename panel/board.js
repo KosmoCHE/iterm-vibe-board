@@ -9,13 +9,12 @@ const state = {
   version: null,
   tab: localStorage.getItem("vibing.tab") || "global",
   fold: JSON.parse(localStorage.getItem("vibing.fold") || "{}"),
-  override: null, // {pane, session, project}: look at something other than the focused pane
-  lastFocusPane: null,
   byId: {},
   children: {},
   selected: null, // shown in the inspector
   editing: false, // the inspector shows controls instead of text
   adding: false, // the add form is open (the + in the bottom bar)
+  filter: "", // Global only: "" | "project:<path>" | "who:<session>"
   down: false, // the server was unreachable; reload when it is back to pick up new assets
   assets: null, // version of the panel files the page was loaded with
   undo: [],
@@ -47,10 +46,6 @@ async function poll() {
       state.board = await api("/api/board");
       state.version = version;
       state.error = "";
-      if (state.board.focus.pane !== state.lastFocusPane) {
-        state.lastFocusPane = state.board.focus.pane; // the user moved: follow again
-        state.override = null;
-      }
       render();
     }
   } catch (e) {
@@ -97,19 +92,18 @@ function setNotice(text) {
 // --- model helpers ------------------------------------------------------------
 
 function focus() {
-  return state.override ? { ...state.board.focus, ...state.override } : state.board.focus;
-}
-
-function focusOn(pane) {
-  const info = state.board.panes[pane];
-  state.override = info ? { pane, session: info.session, project: info.project } : null;
-  render();
+  return state.board.focus;
 }
 
 function scopeItems() {
   const f = focus();
   const all = state.board.items;
-  if (state.tab === "global") return all;
+  if (state.tab === "global") {
+    const [kind, value] = state.filter.split(/:(.*)/s);
+    if (kind === "project") return all.filter((i) => i.project === value);
+    if (kind === "who") return all.filter((i) => i.driver === value);
+    return all;
+  }
   if (state.tab === "project") return f.project ? all.filter((i) => i.project === f.project) : [];
   return f.session ? all.filter((i) => i.driver === f.session) : [];
 }
@@ -220,7 +214,10 @@ function render() {
 
 function emptyText() {
   const f = focus();
-  if (state.tab === "global") return Object.keys(state.board.projects).length ? "Nothing on the board." : "No items yet. Start a session in a project, then add items here.";
+  if (state.tab === "global") {
+    if (state.filter) return "Nothing here for this filter.";
+    return Object.keys(state.board.projects).length ? "Nothing on the board." : "No items yet. Start a session in a project, then add items here.";
+  }
   if (state.tab === "project") return f.project ? "Nothing in this project yet." : "Focus a pane that runs a session.";
   return f.session ? "This session pushes nothing yet." : "Focus a pane that runs a session.";
 }
@@ -230,31 +227,42 @@ function renderTabs() {
 }
 
 function renderScope() {
-  const b = state.board;
+  // Project and Session are bound to the focused pane, like iTerm2's Notes; Global sees
+  // everything and can be narrowed to one project or one driver.
   const s = $("#scope");
   s.replaceChildren();
-  if (state.tab === "global") return;
-  // Project and Session follow the focused pane; the picker looks elsewhere until the user moves.
+  if (state.tab === "global") {
+    s.append(filterSelect());
+    return;
+  }
+  const f = focus();
+  if (state.tab === "project") s.append(el("span", "where", f.project ? projectPath(f.project) : "no project here"));
+  if (state.tab === "session") s.append(el("span", "where", f.session ? "@" + whoName(f.session) : "no session here"));
+}
+
+function filterSelect() {
+  const b = state.board;
   const sel = el("select");
-  const follow = el("option", "", b.focus.pane ? "follow the focused pane" : "pick a pane…");
-  follow.value = "";
-  sel.append(follow);
+  sel.append(new Option("everything", ""));
+  const projects = el("optgroup");
+  projects.label = "Projects";
+  Object.values(b.projects)
+    .sort((x, y) => x.name.localeCompare(y.name))
+    .forEach((p) => projects.append(new Option(`${p.name} — ${projectPath(p.path)}`, "project:" + p.path)));
+  const who = el("optgroup");
+  who.label = "Sessions";
+  who.append(new Option("@me", "who:" + b.me));
   const panes = Object.values(b.panes).filter((p) => p.session);
   panes.sort((x, y) => (y.alive - x.alive) || whoName(x.session).localeCompare(whoName(y.session)));
-  panes.forEach((p) => {
-    const label = state.tab === "project" ? projectName(p.project) + " — @" + whoName(p.session) : "@" + whoName(p.session);
-    const o = el("option", "", label + (p.alive ? "" : " (gone)"));
-    o.value = p.pane;
-    sel.append(o);
-  });
-  sel.value = state.override ? state.override.pane : "";
-  sel.onchange = () => focusOn(sel.value);
-  s.append(sel);
-  const f = focus();
-  if (!state.override) {
-    if (state.tab === "project") s.append(el("span", "where", f.project ? projectPath(f.project) : "no project here"));
-    if (state.tab === "session") s.append(el("span", "where", f.session ? "@" + whoName(f.session) : "no session here"));
-  }
+  panes.forEach((p) => who.append(new Option("@" + whoName(p.session) + (p.alive ? "" : " (gone)"), "who:" + p.session)));
+  sel.append(projects, who);
+  sel.value = state.filter;
+  if (sel.value !== state.filter) state.filter = sel.value = ""; // what it pointed at is gone
+  sel.onchange = () => {
+    state.filter = sel.value;
+    render();
+  };
+  return sel;
 }
 
 function rows(item, kids, depth) {
