@@ -2,7 +2,7 @@
 # Installs iterm-vibe-board for the current user, from this clone:
 #
 #   ~/.iterm-vibe-board/bin/vibing              launcher for the CLI (hooks and agents call it)
-#   ~/.claude/skills/vibing                        -> adapters/claude-code/skills/vibing
+#   ~/.claude/skills/vibing-board                  -> adapters/claude-code/skills/vibing-board
 #   ~/.claude/settings.json                        SessionStart and SessionEnd hooks added
 #   ~/Library/Application Support/iTerm2/Scripts/AutoLaunch/vibing_panel.py -> iterm/vibing_panel.py
 #
@@ -12,7 +12,7 @@ set -eu
 ROOT=$(cd "$(dirname "$0")" && pwd -P)
 DATA=${VIBING_HOME:-$HOME/.iterm-vibe-board}
 BIN=$DATA/bin/vibing
-SKILL=$HOME/.claude/skills/vibing
+SKILL=$HOME/.claude/skills/vibing-board
 SETTINGS=$HOME/.claude/settings.json
 AUTOLAUNCH="$HOME/Library/Application Support/iTerm2/Scripts/AutoLaunch"
 PANEL=$AUTOLAUNCH/vibing_panel.py
@@ -73,7 +73,7 @@ install() {
 PYTHONPATH="$ROOT\${PYTHONPATH:+:\$PYTHONPATH}" exec "$PYTHON" -m vibing "\$@"
 EOF
   chmod +x "$BIN"
-  ln -sfn "$ROOT/adapters/claude-code/skills/vibing" "$SKILL"
+  ln -sfn "$ROOT/adapters/claude-code/skills/vibing-board" "$SKILL"
   hooks install
   ln -sfn "$ROOT/iterm/vibing_panel.py" "$PANEL"
   echo "Installed:"

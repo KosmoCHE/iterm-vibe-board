@@ -12,7 +12,7 @@ from pathlib import Path
 from vibing import store
 
 # The agent-facing rules live in the Claude Code skill; `vibing instructions` prints them.
-SKILL = Path(__file__).resolve().parent.parent / "adapters/claude-code/skills/vibing/SKILL.md"
+SKILL = Path(__file__).resolve().parent.parent / "adapters/claude-code/skills/vibing-board/SKILL.md"
 
 STATUS_MARK = {
     "todo": "·",

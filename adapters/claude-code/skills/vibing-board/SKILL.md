@@ -1,5 +1,5 @@
 ---
-name: vibing
+name: vibing-board
 description: Keep the human's progress board (the Vibe Board panel in iTerm2) up to date. Use when you start a piece of work, when something unplanned comes up, when you are blocked, and when a step is done.
 ---
 

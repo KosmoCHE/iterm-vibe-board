@@ -44,7 +44,10 @@ h2 .path { font-weight: 400; }
 .row.selected { background: var(--selected); }
 .row .line { display: grid; grid-template-columns: 16px min-content max-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
 .row.done .title { color: var(--muted); text-decoration: line-through; }
-.caret { width: 16px; color: var(--muted); font-size: 16px; line-height: 1; position: relative; top: 2px; }
+.caret { width: 16px; height: 16px; color: var(--muted); position: relative; top: 3px; }
+.caret::before { content: ""; display: block; margin: 2px auto 0; width: 0; height: 0;
+                 border: 6px solid transparent; border-left: 8px solid currentColor; border-right: 0; }
+.caret.open::before { border: 6px solid transparent; border-top: 8px solid currentColor; border-bottom: 0; }
 .caret:disabled { visibility: hidden; }
 .box { margin: 0; position: relative; top: 2px; }
 .num { color: var(--muted); font-size: 10.5px; }

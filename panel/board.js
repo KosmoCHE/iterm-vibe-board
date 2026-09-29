@@ -279,7 +279,7 @@ function row(item, depth, nChildren) {
   r.style.setProperty("--depth", depth);
   const line = el("div", "line");
 
-  const caret = el("button", "caret", nChildren ? (isOpen(item.id) ? "▾" : "▸") : "");
+  const caret = el("button", "caret" + (nChildren && isOpen(item.id) ? " open" : ""));
   caret.disabled = !nChildren;
   caret.onclick = () => {
     state.fold[state.tab + ":" + item.id] = !isOpen(item.id);
