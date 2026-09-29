@@ -14,6 +14,7 @@ const state = {
   byId: {},
   children: {},
   selected: null, // shown in the inspector
+  editing: false, // the inspector shows controls instead of text
   undo: [],
   error: "",
   notice: "",
@@ -156,8 +157,7 @@ function isOpen(id) {
 }
 
 function typing() {
-  const a = document.activeElement;
-  return a && (a.classList.contains("edit") || $("#inspector").contains(a));
+  return $("#inspector").contains(document.activeElement);
 }
 
 // --- rendering ------------------------------------------------------------------
@@ -275,7 +275,6 @@ function row(item, depth, nChildren) {
 
   const num = el("span", "num", "#" + item.num);
   const title = el("span", "title", item.title);
-  title.ondblclick = () => editTitle(title, item);
 
   const badges = el("span", "badges");
   if (item.origin === "incident") badges.append(el("span", "badge incident", "⚡"));
@@ -308,7 +307,11 @@ function row(item, depth, nChildren) {
   line.append(caret, box, num, title, badges);
   line.onclick = (e) => {
     if (e.target.closest("button, input, select")) return;
-    select(state.selected === item.id ? null : item.id);
+    if (state.selected !== item.id) select(item.id); // click reads, double-click edits
+  };
+  line.ondblclick = (e) => {
+    if (e.target.closest("button, input, select")) return;
+    select(item.id, true);
   };
   r.append(line);
   if (state.tab === "session" && (item.next || item.waiting_for)) {
@@ -320,8 +323,9 @@ function row(item, depth, nChildren) {
   return r;
 }
 
-function select(id) {
+function select(id, edit = false) {
   state.selected = id;
+  state.editing = edit;
   document.querySelectorAll(".row").forEach((x) => x.classList.toggle("selected", x.dataset.id === id));
   renderInspector();
   const row = id && document.querySelector(`.row[data-id="${id}"]`);
@@ -337,7 +341,7 @@ function driverChip(item) {
   chip.onclick = () => {
     if (alive) api("/api/jump", { method: "POST", body: JSON.stringify({ pane: pane.pane }) }).catch(showError);
     else {
-      select(item.id);
+      select(item.id, true);
       const d = $("#insp-driver");
       if (d) d.focus();
     }
@@ -345,28 +349,7 @@ function driverChip(item) {
   return chip;
 }
 
-function editTitle(span, item) {
-  const input = el("input", "edit");
-  input.value = item.title;
-  let finished = false;
-  const finish = (save) => {
-    if (finished) return;
-    finished = true;
-    const value = input.value.trim();
-    if (save && value && value !== item.title) patch(item.id, { title: value });
-    else render();
-  };
-  input.onkeydown = (e) => {
-    if (e.key === "Enter") finish(true);
-    if (e.key === "Escape") finish(false);
-  };
-  input.onblur = () => finish(true);
-  span.replaceWith(input);
-  input.focus();
-  input.select();
-}
-
-// --- inspector: shows the selected item; nothing appears on hover -----------------
+// --- inspector: click shows the selected item, double-click (or Edit) makes it editable ---
 
 function renderInspector() {
   const box = $("#inspector");
@@ -379,21 +362,32 @@ function renderInspector() {
   if (box.contains(document.activeElement)) return;
   box.replaceChildren();
 
+  const b = state.board;
   const head = el("div", "head");
   const meta = el("span", "meta", `${item.origin} · by ${whoName(item.created_by)} · ${projectName(item.project)}`);
+  const toggle = el("button", "toggle", state.editing ? "Done" : "Edit");
+  toggle.onclick = () => select(item.id, !state.editing);
   const close = el("button", "close", "×");
   close.title = "Close (Esc)";
   close.onclick = () => select(null);
-  head.append(el("b", "", `#${item.num} ${item.title}`), meta, close);
+  head.append(el("b", "", `#${item.num} ${item.title}`), meta, toggle, close);
   head.title = "id " + item.id;
   box.append(head);
 
-  const b = state.board;
-  box.append(field("Status", choice(b.statuses.map((s) => [s, b.labels[s]]), item.status, (v) => patch(item.id, { status: v }))));
-  box.append(field("Driver", choice(driverOptions(), item.driver || "", (v) => patch(item.id, { driver: v || null }), "insp-driver")));
-  box.append(field("Next", text(item.next, (v) => patch(item.id, { next: v }))));
-  box.append(field("Waiting for", text(item.waiting_for, (v) => patch(item.id, { waiting_for: v }))));
-  box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
+  if (state.editing) {
+    box.append(field("Title", text(item.title, (v) => v && patch(item.id, { title: v }))));
+    box.append(field("Status", choice(b.statuses.map((s) => [s, b.labels[s]]), item.status, (v) => patch(item.id, { status: v }))));
+    box.append(field("Driver", choice(driverOptions(), item.driver || "", (v) => patch(item.id, { driver: v || null }), "insp-driver")));
+    box.append(field("Next", text(item.next, (v) => patch(item.id, { next: v }))));
+    box.append(field("Waiting for", text(item.waiting_for, (v) => patch(item.id, { waiting_for: v }))));
+    box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
+  } else {
+    box.append(field("Status", el("span", "", b.labels[item.status])));
+    box.append(field("Driver", el("span", "", item.driver ? whoName(item.driver) : "unassigned")));
+    if (item.next) box.append(field("Next", el("span", "", item.next)));
+    if (item.waiting_for) box.append(field("Waiting for", el("span", "", item.waiting_for)));
+    if (item.due) box.append(field("Due", el("span", "", item.due)));
+  }
   box.hidden = false;
 }
 
@@ -488,7 +482,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     undo();
   }
-  if (e.key === "Escape" && !inField && state.selected) select(null);
+  if (e.key === "Escape" && !inField && state.selected) select(state.editing ? state.selected : null);
 });
 
 $("#add").onsubmit = (e) => {

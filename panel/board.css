@@ -52,7 +52,6 @@ h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacin
 .box { margin: 0; flex: none; position: relative; top: 1px; }
 .num { color: var(--muted); font-size: 10.5px; flex: none; }
 .title { flex: 1 1 auto; min-width: 8em; word-break: break-word; }
-.edit { flex: 1 1 auto; min-width: 8em; border: 1px solid var(--accent); border-radius: 3px; padding: 0 3px; background: var(--bg); }
 .detail { color: var(--muted); padding: 0 0 4px 22px; display: flex; flex-direction: column; }
 
 .badges { display: inline-flex; gap: 4px; flex-wrap: wrap; }
@@ -75,7 +74,9 @@ h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacin
 .inspector .head { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 .inspector .head b { word-break: break-word; }
 .inspector .meta { color: var(--muted); white-space: nowrap; flex: 1; text-align: right; }
-.inspector .close { color: var(--muted); font-size: 14px; line-height: 1; padding: 0 2px; }
+.inspector .toggle { color: var(--accent); flex: none; }
+.inspector .close { color: var(--muted); font-size: 14px; line-height: 1; padding: 0 2px; flex: none; }
+.inspector .field span { word-break: break-word; }
 .inspector .field { display: grid; grid-template-columns: 5.5em 1fr; gap: 4px; align-items: center; margin: 2px 0; }
 .inspector .field label { color: var(--muted); }
 .inspector input, .inspector select { width: 100%; border: 1px solid var(--line); border-radius: 3px; padding: 1px 4px; background: var(--bg); }
