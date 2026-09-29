@@ -17,6 +17,7 @@ const state = {
   editing: false, // the inspector shows controls instead of text
   adding: false, // the add form is open (the + in the bottom bar)
   down: false, // the server was unreachable; reload when it is back to pick up new assets
+  assets: null, // version of the panel files the page was loaded with
   undo: [],
   error: "",
   notice: "",
@@ -38,8 +39,10 @@ function api(path, options = {}) {
 
 async function poll() {
   try {
-    const { version } = await api("/api/version");
+    const { version, assets } = await api("/api/version");
     if (state.down) return location.reload();
+    if (state.assets && assets !== state.assets) return location.reload(); // panel files changed
+    state.assets = assets;
     if (version !== state.version) {
       state.board = await api("/api/board");
       state.version = version;

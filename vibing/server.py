@@ -141,7 +141,7 @@ class Handler(BaseHTTPRequestHandler):
         elif not self._authorized(query):
             self._error(HTTPStatus.UNAUTHORIZED, "bad token")
         elif url.path == "/api/version":
-            self._json({"version": store.version()})
+            self._json({"version": store.version(), "assets": assets_version()})
         elif url.path == "/api/board":
             self._json(self.server.board())
         else:
@@ -195,6 +195,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 DEFAULT_PORT = 47431
+
+
+def assets_version() -> float:
+    """Changes when a panel file changes, so an open page can reload itself."""
+    return max(f.stat().st_mtime for f in PANEL.iterdir() if f.is_file())
 
 
 def stored_token() -> str:
