@@ -55,11 +55,22 @@ runtime_python() { # iTerm2's own Python runtime, which runs AutoLaunch scripts
         "$HOME/Library/Application Support/iTerm2/iterm2env/versions/"*/bin/python3 2>/dev/null | tail -1
 }
 
+forget_tool() { # iTerm2 remembers dynamic tools in its preferences; drop ours
+  "$PYTHON" - <<'EOF'
+import plistlib, subprocess
+data = plistlib.loads(subprocess.run(["defaults", "export", "com.googlecode.iterm2", "-"], capture_output=True).stdout)
+tools = data.get("NoSyncDynamicTools", {})
+if tools.pop("com.github.kosmoche.vibeboard", None) is not None:
+    subprocess.run(["defaults", "write", "com.googlecode.iterm2", "NoSyncDynamicTools", plistlib.dumps(tools).decode()])
+EOF
+}
+
 uninstall() {
   pkill -f "$PANEL" 2>/dev/null || true
   pkill -f "vibeboard serve" 2>/dev/null || true
   rm -f "$BIN" "$SKILL" "$PANEL"
   [ -f "$SETTINGS" ] && hooks uninstall
+  forget_tool
   echo "Removed the launcher, the skill, the hooks and the AutoLaunch script."
   echo "Your items are still in $DATA; delete that directory if you want them gone too."
 }

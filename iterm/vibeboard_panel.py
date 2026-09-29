@@ -15,7 +15,7 @@ import urllib.request
 import iterm2
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))  # AutoLaunch holds a symlink
-TOOL_ID = "com.github.kosmoche.vibeboard"
+TOOL_ID = "com.github.kosmoche.vibeboard"  # iTerm2 keys its tool list by this; never change it
 
 
 def post(url: str, token: str, path: str, data: dict) -> None:
