@@ -502,7 +502,33 @@ function renderAdd() {
 function openAdd(open) {
   state.adding = open;
   renderAdd();
-  if (open) $("#add-title").focus();
+  if (open) {
+    // + with an item selected means "a step under it"
+    const sel = state.selected && state.byId[state.selected];
+    renderParentOptions(sel ? sel.id : "");
+    $("#add-title").focus();
+  }
+}
+
+function addProject() {
+  return state.tab === "global" ? $("#add-project").value : focus().project;
+}
+
+function renderParentOptions(chosen) {
+  const sel = $("#add-parent");
+  sel.replaceChildren(new Option("top level", ""));
+  const project = addProject();
+  const walk = (parent, depth) => {
+    (parent ? state.children[parent] || [] : state.board.items.filter((i) => !i.parent))
+      .filter((i) => i.project === project && i.status !== "done")
+      .forEach((i) => {
+        sel.append(new Option(`${"\u2003".repeat(depth)}under #${i.num} ${i.title}`, i.id));
+        walk(i.id, depth + 1);
+      });
+  };
+  walk(null, 0);
+  sel.value = chosen;
+  if (sel.value !== chosen) sel.value = "";
 }
 
 function renderStatus() {
@@ -536,6 +562,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 $("#plus").onclick = () => openAdd(!state.adding);
+$("#add-project").onchange = () => renderParentOptions("");
 $("#add-title").onkeydown = (e) => {
   if (e.key === "Escape") openAdd(false);
 };
@@ -548,17 +575,20 @@ $("#add").onsubmit = (e) => {
   const f = focus();
   const title = $("#add-title").value.trim();
   if (!title) return;
-  const project = state.tab === "global" ? $("#add-project").value : f.project;
+  const project = addProject();
   if (!project) return showError(new Error("pick a project first"));
+  const parent = $("#add-parent").value || null;
   const body = {
     title,
     project,
+    parent,
     origin: $("#add-origin").value,
     created_by: state.board.me,
     driver: state.tab === "session" ? f.session : null,
   };
   api("/api/items", { method: "POST", body: JSON.stringify(body) })
     .then(() => {
+      if (parent) state.fold[state.tab + ":" + parent] = true; // show what was just added
       $("#add-title").value = "";
       setNotice(`Added “${title}”`);
       poll();
