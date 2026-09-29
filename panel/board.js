@@ -156,7 +156,7 @@ function projectPath(path) {
 
 function driverOptions() {
   const b = state.board;
-  const options = [["", "unassigned"], [b.me, "me"]];
+  const options = [["", "no session"]];
   Object.values(b.panes)
     .filter((p) => p.session && !p.ended_at)
     .forEach((p) => options.push([p.session, whoName(p.session)]));
@@ -174,8 +174,8 @@ function progress(id) {
   return out;
 }
 
-const PROGRESS_MARK = { plan: "●", incident: "⚡", insert: "+" };
-const PROGRESS_WORDS = { plan: "planned", incident: "issues", insert: "added" };
+const PROGRESS_MARK = { plan: "●", issue: "⚡", added: "+" };
+const PROGRESS_WORDS = { plan: "planned", issue: "issues", added: "added" };
 
 function isOpen(id) {
   const key = state.tab + ":" + id;
@@ -274,7 +274,6 @@ function filterSelect() {
     .forEach((p) => projects.append(new Option(`${p.name} — ${projectPath(p.path)}`, "project:" + p.path)));
   const who = el("optgroup");
   who.label = "Sessions";
-  who.append(new Option("@me", "who:" + b.me));
   const panes = Object.values(b.panes).filter((p) => p.session);
   panes.sort((x, y) => (y.alive - x.alive) || whoName(x.session).localeCompare(whoName(y.session)));
   panes.forEach((p) => who.append(new Option("@" + whoName(p.session) + (p.alive ? "" : " (gone)"), "who:" + p.session)));
@@ -345,8 +344,8 @@ function row(item, depth, nChildren) {
   const title = el("span", "title", item.title);
 
   const badges = el("span", "badges");
-  if (item.origin === "incident") badges.append(el("span", "badge incident", "⚡"));
-  if (item.origin === "insert") badges.append(el("span", "badge insert", "+"));
+  if (item.origin === "issue") badges.append(el("span", "badge issue", "⚡"));
+  if (item.origin === "added") badges.append(el("span", "badge added", "+"));
   if (item.status !== "todo" && item.status !== "done") {
     const label = b.labels[item.status] + (item.status === "waiting" && item.waiting_for ? ": " + item.waiting_for : "");
     badges.append(el("span", "badge status " + item.status, label));
@@ -355,7 +354,7 @@ function row(item, depth, nChildren) {
   const parts = Object.entries(p).filter(([, [, total]]) => total);
   if (parts.length) {
     const progressBadge = el("span", "badge progress", parts.map(([o, [d, t]]) => `${PROGRESS_MARK[o]}${d}/${t}`).join(" · "));
-    progressBadge.title = parts.map(([o, [d, t]]) => `${PROGRESS_WORDS[o]} ${d} of ${t} ${o === "incident" ? "resolved" : "done"}`).join(" · ");
+    progressBadge.title = parts.map(([o, [d, t]]) => `${PROGRESS_WORDS[o]} ${d} of ${t} ${o === "issue" ? "resolved" : "done"}`).join(" · ");
     badges.append(progressBadge);
   }
   for (const dep of item.depends_on) {
@@ -485,7 +484,7 @@ function renderInspector() {
   } else {
     if (item.description) box.append(el("div", "desc", item.description));
     box.append(field("Status", el("span", "", b.labels[item.status])));
-    box.append(field("Driver", el("span", "", item.driver ? whoName(item.driver) : "unassigned")));
+    box.append(field("Driver", el("span", "", item.driver ? "@" + whoName(item.driver) : "no session")));
     if (item.next) box.append(field("Next", el("span", "", item.next)));
     if (item.waiting_for) box.append(field("Waiting for", el("span", "", item.waiting_for)));
     if (item.due) box.append(field("Due", el("span", "", item.due)));

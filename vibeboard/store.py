@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 STATUSES = ["todo", "doing", "waiting", "later", "done"]
-ORIGINS = ["plan", "incident", "insert"]
+ORIGINS = ["plan", "issue", "added"]
 ME = "me"
 
 DEFAULTS = {
@@ -273,6 +273,8 @@ def _validated(fields: dict, items: dict, creating: bool, self_id: str | None = 
             raise ValueError(f"status must be one of {', '.join(STATUSES)}")
         if key == "origin" and value not in ORIGINS:
             raise ValueError(f"origin must be one of {', '.join(ORIGINS)}")
+        if key == "driver" and value == ME:
+            raise ValueError("the driver is a session; leave it empty for work you do yourself")
         if key == "title" and not str(value).strip():
             raise ValueError("title is empty")
         if key == "project":

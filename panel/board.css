@@ -64,8 +64,8 @@ h2 .path { font-weight: 400; }
 .badges { display: contents; } /* each badge flows after the title on its own */
 .badge { font-size: 10.5px; line-height: 1.35; padding: 0 5px; border-radius: 8px; background: var(--hover); color: var(--muted);
          white-space: nowrap; max-width: 11em; overflow: hidden; text-overflow: ellipsis; }
-.badge.incident { color: var(--danger); font-weight: 600; }
-.badge.insert { color: var(--warn); font-weight: 600; }
+.badge.issue { color: var(--danger); font-weight: 600; }
+.badge.added { color: var(--warn); font-weight: 600; }
 /* same colours as iTerm2's Session Status: working is yellow, waiting is blue, idle is grey */
 .badge.status.doing { color: var(--warn); }
 .badge.status.waiting { color: var(--accent); }

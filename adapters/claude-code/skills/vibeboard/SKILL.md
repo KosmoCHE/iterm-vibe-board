@@ -15,9 +15,9 @@ private list.
    given (`vibeboard add "…" --parent ID`), then `vibeboard claim` the item.
 2. **Register anything unplanned before handling it.** Ask: *if I ignored
    this, could the original plan still finish?*
-   - No → `--origin incident`. A problem in the way: a failing build, a missing
+   - No → `--origin issue`. A problem in the way: a failing build, a missing
      permission, a bug you ran into.
-   - Yes → `--origin insert`. New scope on top of the plan: a flag the human
+   - Yes → `--origin added`. New scope on top of the plan: a flag the human
      asked for in passing, a follow-up you spotted.
 
    Never handle it silently, whoever noticed it first.
@@ -29,7 +29,7 @@ private list.
 ```
 vibeboard list [--all | --project PATH] [--mine]      what is on the board
 vibeboard show ID
-vibeboard add "title" [--parent ID] [--origin plan|incident|insert] [--desc "…"]
+vibeboard add "title" [--parent ID] [--origin plan|issue|added] [--desc "…"]
                    [--next "…"] [--waiting "…"] [--due 2026-10-03]
 vibeboard claim ID                                     you push this item; status → doing
 vibeboard set ID --desc "…" | --next "…" | --waiting "…" | --status S | --depends ID,ID

@@ -42,9 +42,9 @@ items are yours, agents are just the ones pushing them.
 - **Origin says why an item exists**, so the original plan stays visible when
   things pile up:
   - `plan` – written down before starting;
-  - `incident` (⚡) – a problem that showed up on the way; ignore it and the
+  - `issue` (⚡) – a problem that showed up on the way; ignore it and the
     plan cannot finish;
-  - `insert` (+) – new scope added after the plan; ignore it and the plan still
+  - `added` (+) – new scope added after the plan; ignore it and the plan still
     finishes.
 
   A parent shows `●2/4 · +0/1 · ⚡0/1`: done/total per origin over its direct

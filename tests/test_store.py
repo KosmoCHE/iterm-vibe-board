@@ -39,7 +39,9 @@ def test_validation():
     with pytest.raises(ValueError):
         store.update(item["id"], status="nope")
     with pytest.raises(ValueError):
-        store.update(item["id"], origin="incident")  # history, not editable
+        store.update(item["id"], origin="issue")  # history, not editable
+    with pytest.raises(ValueError):
+        store.update(item["id"], driver=store.ME)  # the driver is a session or nothing
     with pytest.raises(ValueError):
         store.update(item["id"], parent=item["id"])
     with pytest.raises(KeyError):

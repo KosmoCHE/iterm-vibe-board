@@ -22,8 +22,8 @@ STATUS_MARK = {
     "later": "~",
     "done": "✓",
 }
-ORIGIN_MARK = {"plan": "", "incident": " ⚡", "insert": " +"}
-PROGRESS_MARK = {"plan": "●", "incident": "⚡", "insert": "+"}
+ORIGIN_MARK = {"plan": "", "issue": " ⚡", "added": " +"}
+PROGRESS_MARK = {"plan": "●", "issue": "⚡", "added": "+"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--parent", help="id of the item this is a sub-step of")
     a.add_argument("--origin", choices=store.ORIGINS, default="plan")
     a.add_argument("--status", choices=store.STATUSES)
-    a.add_argument("--driver", help="session id, 'me' or 'none' (default: the calling session)")
+    a.add_argument("--driver", help="session id or 'none' (default: the calling session)")
     _field_args(a)
     a.add_argument("--json", action="store_true")
     a.set_defaults(func=cmd_add)
@@ -73,7 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     st.add_argument("id")
     st.add_argument("--title")
     st.add_argument("--status", choices=store.STATUSES)
-    st.add_argument("--driver", help="session id, 'me' or 'none'")
+    st.add_argument("--driver", help="session id or 'none'")
     st.add_argument("--parent", help="item id or 'none'")
     st.add_argument("--project")
     _field_args(st)
