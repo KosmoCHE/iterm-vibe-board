@@ -20,7 +20,6 @@ import os
 import re
 import secrets
 import tempfile
-from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -156,24 +155,19 @@ def get(item_id: str) -> dict:
 
 
 def progress(item_id: str, items: dict) -> dict:
-    """Counts over all descendants: planned steps done/total, incidents, inserts."""
-    children: dict = defaultdict(list)
+    """Over direct children: steps done/total (planned + inserted), how many were inserted,
+    and how many incidents are still open. Incidents are detours, not steps."""
+    out = {"steps": 0, "done": 0, "inserted": 0, "incidents": 0, "incidents_open": 0}
     for it in items.values():
-        if it["parent"]:
-            children[it["parent"]].append(it)
-    out = {"total": 0, "plan_done": 0, "plan_total": 0, "incidents": 0, "inserts": 0}
-    stack = list(children.get(item_id, []))
-    while stack:
-        it = stack.pop()
-        out["total"] += 1
-        if it["origin"] == "plan":
-            out["plan_total"] += 1
-            out["plan_done"] += it["status"] == "done"
-        elif it["origin"] == "incident":
+        if it["parent"] != item_id:
+            continue
+        if it["origin"] == "incident":
             out["incidents"] += 1
+            out["incidents_open"] += it["status"] != "done"
         else:
-            out["inserts"] += 1
-        stack.extend(children.get(it["id"], []))
+            out["steps"] += 1
+            out["done"] += it["status"] == "done"
+            out["inserted"] += it["origin"] == "insert"
     return out
 
 

@@ -275,13 +275,13 @@ def _print_item(item: dict, children: dict, everything: dict, depth: int) -> Non
     if item["driver"]:
         tags.append("@" + item["driver"][:8])
     p = store.progress(item["id"], everything)
-    if p["total"]:
-        summary = f"{p['plan_done']}/{p['plan_total']}"
-        if p["incidents"]:
-            summary += f" ⚡{p['incidents']}"
-        if p["inserts"]:
-            summary += f" +{p['inserts']}"
-        tags.append(summary)
+    if p["steps"] or p["incidents_open"]:
+        summary = f"{p['done']}/{p['steps']}" if p["steps"] else ""
+        if p["inserted"]:
+            summary += f" +{p['inserted']}"
+        if p["incidents_open"]:
+            summary += f" ⚡{p['incidents_open']}"
+        tags.append(summary.strip())
     if item["waiting_for"]:
         tags.append("waits: " + item["waiting_for"])
     for dep in item["depends_on"]:

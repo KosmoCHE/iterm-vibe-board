@@ -143,17 +143,18 @@ function driverOptions() {
 }
 
 function progress(id) {
-  const out = { total: 0, plan_done: 0, plan_total: 0, incidents: 0, inserts: 0 };
-  const stack = [...(state.children[id] || [])];
-  while (stack.length) {
-    const it = stack.pop();
-    out.total++;
-    if (it.origin === "plan") {
-      out.plan_total++;
-      if (it.status === "done") out.plan_done++;
-    } else if (it.origin === "incident") out.incidents++;
-    else out.inserts++;
-    stack.push(...(state.children[it.id] || []));
+  // Over direct children: steps done/total (planned + inserted), how many were inserted,
+  // and how many incidents are still open. Incidents are detours, not steps.
+  const out = { steps: 0, done: 0, inserted: 0, incidents: 0, incidentsOpen: 0 };
+  for (const it of state.children[id] || []) {
+    if (it.origin === "incident") {
+      out.incidents++;
+      if (it.status !== "done") out.incidentsOpen++;
+    } else {
+      out.steps++;
+      if (it.status === "done") out.done++;
+      if (it.origin === "insert") out.inserted++;
+    }
   }
   return out;
 }
@@ -291,14 +292,14 @@ function row(item, depth, nChildren) {
     badges.append(el("span", "badge status " + item.status, label));
   }
   const p = progress(item.id);
-  if (p.total) {
-    let s = `${p.plan_done}/${p.plan_total}`;
-    if (p.incidents) s += ` ⚡${p.incidents}`;
-    if (p.inserts) s += ` +${p.inserts}`;
-    const progressBadge = el("span", "badge progress", s);
-    const words = [`${p.plan_done} of ${p.plan_total} planned steps done`];
-    if (p.incidents) words.push(`${p.incidents} incident${p.incidents > 1 ? "s" : ""}`);
-    if (p.inserts) words.push(`${p.inserts} inserted`);
+  if (p.steps || p.incidentsOpen) {
+    let s = p.steps ? `${p.done}/${p.steps}` : "";
+    if (p.inserted) s += ` +${p.inserted}`;
+    if (p.incidentsOpen) s += ` ⚡${p.incidentsOpen}`;
+    const progressBadge = el("span", "badge progress", s.trim());
+    const words = [];
+    if (p.steps) words.push(`${p.done} of ${p.steps} steps done` + (p.inserted ? ` (${p.inserted} added along the way)` : ""));
+    if (p.incidents) words.push(`${p.incidentsOpen} of ${p.incidents} incident${p.incidents > 1 ? "s" : ""} still open`);
     progressBadge.title = words.join(" · ");
     badges.append(progressBadge);
   }
