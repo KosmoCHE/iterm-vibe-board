@@ -304,7 +304,15 @@ function row(item, depth, nChildren) {
     badges.append(from);
   }
 
-  line.append(caret, box, num, title, badges);
+  const content = el("div", "content"); // title and badges share a column, so wrapped badges stay aligned
+  content.append(title, badges);
+  if (state.tab === "session" && (item.next || item.waiting_for)) {
+    const detail = el("div", "detail");
+    if (item.next) detail.append(el("span", "", "next: " + item.next));
+    if (item.waiting_for) detail.append(el("span", "", "waiting: " + item.waiting_for));
+    content.append(detail);
+  }
+  line.append(caret, box, num, content);
   line.onclick = (e) => {
     if (e.target.closest("button, input, select")) return;
     if (state.selected !== item.id) select(item.id); // click reads, double-click edits
@@ -314,12 +322,6 @@ function row(item, depth, nChildren) {
     select(item.id, true);
   };
   r.append(line);
-  if (state.tab === "session" && (item.next || item.waiting_for)) {
-    const detail = el("div", "detail");
-    if (item.next) detail.append(el("span", "", "next: " + item.next));
-    if (item.waiting_for) detail.append(el("span", "", "waiting: " + item.waiting_for));
-    r.append(detail);
-  }
   return r;
 }
 
