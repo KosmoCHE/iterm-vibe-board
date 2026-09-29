@@ -480,6 +480,7 @@ function renderStatus() {
   s.textContent = state.error || state.notice;
   s.className = state.error ? "error" : "";
   $("#undo").hidden = !state.undo.length;
+  $("#footer").hidden = !(state.error || state.notice || state.undo.length);
 }
 
 // --- wiring ---------------------------------------------------------------------

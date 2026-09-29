@@ -8,11 +8,14 @@
 </head>
 <body>
   <header>
-    <nav class="tabs">
-      <button data-tab="global">Global</button>
-      <button data-tab="project">Project</button>
-      <button data-tab="session">Session</button>
-    </nav>
+    <div class="bar">
+      <nav class="tabs">
+        <button data-tab="global">Global</button>
+        <button data-tab="project">Project</button>
+        <button data-tab="session">Session</button>
+      </nav>
+      <button id="plus" type="button" title="Add an item">+</button>
+    </div>
     <div id="scope" class="scope"></div>
   </header>
   <main id="main">
@@ -28,8 +31,7 @@
     <input id="add-title" placeholder="New item, Enter to add, Esc to close">
     <select id="add-project" title="project"></select>
   </form>
-  <footer>
-    <button id="plus" type="button" title="Add an item">+</button>
+  <footer id="footer" hidden>
     <span id="status"></span>
     <button id="undo" type="button" hidden>Undo</button>
   </footer>

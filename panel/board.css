@@ -26,7 +26,8 @@ input, select { -webkit-user-select: text; user-select: text; }
 
 /* header: segmented control + scope */
 header { border-bottom: 1px solid var(--line); padding: 6px 8px 5px; }
-.tabs { display: flex; gap: 2px; background: var(--hover); border-radius: 7px; padding: 2px; }
+.bar { display: flex; align-items: center; gap: 8px; }
+.tabs { flex: 1; display: flex; gap: 2px; background: var(--hover); border-radius: 7px; padding: 2px; }
 .tabs button { flex: 1; padding: 2px 0; border-radius: 5px; color: var(--muted); font-weight: 500; }
 .tabs button.on { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px color-mix(in srgb, CanvasText 25%, transparent); }
 .scope { display: flex; gap: 6px; align-items: center; margin-top: 5px; color: var(--muted); min-height: 18px; }
@@ -64,7 +65,7 @@ h2 { font-size: 11px; font-weight: 600; color: var(--muted); margin: 8px 8px 1px
 
 /* add form: a popover above the + in the bottom bar */
 body { position: relative; }
-.add { position: absolute; left: 8px; bottom: 30px; width: min(20em, calc(100% - 16px)); z-index: 2;
+.add { position: absolute; right: 8px; top: 34px; width: min(20em, calc(100% - 16px)); z-index: 2;
        display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--bg);
        border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px color-mix(in srgb, CanvasText 30%, transparent); }
 .add[hidden] { display: none; }
@@ -84,10 +85,11 @@ body { position: relative; }
 .inspector input, .inspector select { width: 100%; }
 
 /* bottom bar: + on the left, message and Undo on the right */
-footer { display: flex; align-items: center; gap: 8px; padding: 3px 8px; min-height: 24px; border-top: 1px solid var(--line); }
-#plus { font-size: 16px; line-height: 1; color: var(--muted); width: 18px; }
+#plus { font-size: 17px; line-height: 1; color: var(--muted); width: 18px; text-align: center; }
 #plus:hover { color: var(--fg); }
 #plus:disabled { opacity: .4; }
+footer { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-top: 1px solid var(--line); }
+footer[hidden] { display: none; }
 #status { flex: 1; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #status.error { color: var(--danger); }
 #undo { color: var(--accent); }
