@@ -65,7 +65,8 @@ class BoardServer(ThreadingHTTPServer):
         names = self.pane_names()
         panes = {}
         for pane, info in store.panes().items():
-            panes[pane] = dict(info, name=names.get(pane, ""), alive=pane in names)
+            name = names.get(pane) or info.get("name", "")  # a stored name outlives the pane
+            panes[pane] = dict(info, name=name, alive=pane in names)
         focus = {"pane": self.focus, "session": None, "project": None}
         info = panes.get(self.focus or "")
         if info and not info.get("ended_at"):

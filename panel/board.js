@@ -133,6 +133,10 @@ function projectName(path) {
   return p ? p.name : path.split("/").pop();
 }
 
+function projectPath(path) {
+  return path.replace(/^\/Users\/[^/]+(?=\/|$)/, "~");
+}
+
 function driverOptions() {
   const b = state.board;
   const options = [["", "unassigned"], [b.me, "me"]];
@@ -202,7 +206,9 @@ function render() {
     const byProject = {};
     roots.forEach((i) => (byProject[i.project] = byProject[i.project] || []).push(i));
     for (const project of Object.keys(byProject).sort()) {
-      tree.append(el("h2", "project", projectName(project)));
+      const h = el("h2", "project", projectName(project));
+      h.append(" ", el("span", "path", projectPath(project)));
+      tree.append(h);
       byProject[project].forEach((i) => tree.append(...rows(i, kids, 0)));
     }
   } else roots.forEach((i) => tree.append(...rows(i, kids, 0)));
@@ -236,7 +242,7 @@ function renderScope() {
   const panes = Object.values(b.panes).filter((p) => p.session);
   panes.sort((x, y) => (y.alive - x.alive) || whoName(x.session).localeCompare(whoName(y.session)));
   panes.forEach((p) => {
-    const label = state.tab === "project" ? projectName(p.project) + " — " + whoName(p.session) : whoName(p.session);
+    const label = state.tab === "project" ? projectName(p.project) + " — @" + whoName(p.session) : "@" + whoName(p.session);
     const o = el("option", "", label + (p.alive ? "" : " (gone)"));
     o.value = p.pane;
     sel.append(o);
@@ -246,8 +252,8 @@ function renderScope() {
   s.append(sel);
   const f = focus();
   if (!state.override) {
-    if (state.tab === "project") s.append(el("span", "where", f.project ? projectName(f.project) : "no project here"));
-    if (state.tab === "session") s.append(el("span", "where", f.session ? whoName(f.session) : "no session here"));
+    if (state.tab === "project") s.append(el("span", "where", f.project ? projectPath(f.project) : "no project here"));
+    if (state.tab === "session") s.append(el("span", "where", f.session ? "@" + whoName(f.session) : "no session here"));
   }
 }
 
@@ -342,7 +348,7 @@ function select(id, edit = false) {
 function driverChip(item) {
   const pane = paneOf(item.driver);
   const alive = pane && pane.alive;
-  const name = whoName(item.driver);
+  const name = "@" + whoName(item.driver);
   const chip = el("button", "badge driver" + (pane && !alive ? " ended" : ""), name);
   chip.title = name + (alive ? " — jump to this pane" : " — this session is gone; pick another driver below");
   chip.onclick = () => {
@@ -371,7 +377,7 @@ function renderInspector() {
 
   const b = state.board;
   const head = el("div", "head");
-  const meta = el("span", "meta", `${item.origin} · by ${whoName(item.created_by)} · ${projectName(item.project)}`);
+  const meta = el("span", "meta", `${item.origin} · by @${whoName(item.created_by)} · ${projectPath(item.project)}`);
   const toggle = el("button", "toggle", state.editing ? "Done" : "Edit");
   toggle.onclick = () => select(item.id, !state.editing);
   const close = el("button", "close", "×");
