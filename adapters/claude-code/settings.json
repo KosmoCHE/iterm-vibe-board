@@ -1,0 +1,6 @@
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "vibing hook" }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "vibing hook" }] }]
+  }
+}

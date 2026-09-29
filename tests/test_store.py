@@ -1,8 +1,9 @@
+import io
 import json
 
 import pytest
 
-from vibing import store
+from vibing import cli, store
 
 
 @pytest.fixture(autouse=True)
@@ -90,3 +91,18 @@ def test_corrupt_item_file_loses_only_that_item(tmp_home):
     bad = tmp_home / "projects" / store.project_key("/tmp/a") / "items" / "bad.json"
     bad.write_text("{not json")
     assert set(store.load_all()) == {keep["id"]}
+
+
+def test_hook_records_the_pane(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    event = {"hook_event_name": "SessionStart", "session_id": "s1", "cwd": "/tmp/a"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
+    assert cli.main(["hook"]) == 0
+    assert store.identity() == ("s1", "/tmp/a")
+    monkeypatch.setattr(
+        "sys.stdin", io.StringIO(json.dumps({**event, "hook_event_name": "SessionEnd"}))
+    )
+    assert cli.main(["hook"]) == 0
+    assert store.identity() == (store.ME, None)
+    monkeypatch.setattr("sys.stdin", io.StringIO("not json"))
+    assert cli.main(["hook"]) == 0

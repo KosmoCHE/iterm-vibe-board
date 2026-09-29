@@ -7,36 +7,12 @@ import json
 import os
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 from vibing import store
 
-INSTRUCTIONS = """\
-vibing -- the progress board shared with the human who runs this terminal.
-
-The board is the human's. You update the items you push; you never keep a
-private list. Three rules:
-
-1. Before starting a piece of work, write the plan as sub-steps of the item
-   you were given (origin plan), then claim the item.
-2. Anything unplanned that comes up is registered BEFORE you handle it:
-   --origin incident if it blocks you, --origin insert if it is new scope.
-   Never handle it silently.
-3. When an unplanned item is done, say which planned step comes next.
-
-Commands (add --json for machine-readable output):
-  vibing list [--all | --project PATH] [--mine]     what is on the board
-  vibing show ID
-  vibing add "title" [--parent ID] [--origin plan|incident|insert]
-                     [--next "..."] [--waiting "..."] [--due 2026-10-03]
-  vibing claim ID                                    you push this item; status -> doing
-  vibing set ID --next "..." | --waiting "..." | --status S | --depends ID,ID
-  vibing done ID
-
-Statuses: todo doing waiting later done.
-When something blocks you, set --status waiting and say on whom in --waiting
-("me: approve the resize" when it is the human, or a name, or a machine).
-Your session and project are detected from the pane you run in.
-"""
+# The agent-facing rules live in the Claude Code skill; `vibing instructions` prints them.
+SKILL = Path(__file__).resolve().parent.parent / "adapters/claude-code/skills/vibing/SKILL.md"
 
 STATUS_MARK = {
     "todo": "·",
@@ -121,6 +97,11 @@ def build_parser() -> argparse.ArgumentParser:
     pe.add_argument("--session", required=True)
     pe.set_defaults(func=cmd_pane_end)
 
+    hk = sub.add_parser(
+        "hook", help="Claude Code hook: reads the event from stdin (SessionStart/End)"
+    )
+    hk.set_defaults(func=cmd_hook)
+
     sv = sub.add_parser("serve", help="run the panel server")
     sv.add_argument("--port", type=int, default=None, help="default 47431, any free port if taken")
     sv.add_argument("--token", help="default: the one stored in the data directory")
@@ -130,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     sv.set_defaults(func=cmd_serve)
 
     ins = sub.add_parser("instructions", help="how an agent should use the board")
-    ins.set_defaults(func=lambda a: print(INSTRUCTIONS, end=""))
+    ins.set_defaults(func=cmd_instructions)
     return p
 
 
@@ -297,22 +278,52 @@ def _print_item(item: dict, children: dict, everything: dict, depth: int) -> Non
 
 
 def cmd_pane_start(args: argparse.Namespace) -> None:
+    _pane_start(args.session, args.project)
+
+
+def cmd_pane_end(args: argparse.Namespace) -> None:
+    _pane_end(args.session)
+
+
+def _pane_start(session: str, project: str) -> None:
     pane = store.current_pane()
     if pane:  # outside iTerm2 or inside tmux there is nothing trustworthy to record
         store.set_pane(
             pane,
-            session=args.session,
-            project=os.path.abspath(args.project),
+            session=session,
+            project=os.path.abspath(project),
             started_at=store.now(),
             ended_at=None,
         )
 
 
-def cmd_pane_end(args: argparse.Namespace) -> None:
+def _pane_end(session: str) -> None:
     pane = store.current_pane()
     info = store.get_pane(pane) if pane else None
-    if info and info.get("session") == args.session:
+    if info and info.get("session") == session:
         store.set_pane(pane, ended_at=store.now())
+
+
+def cmd_hook(args: argparse.Namespace) -> None:
+    """Claude Code hook. Quiet and forgiving: a hook must never break the session."""
+    try:
+        event = json.load(sys.stdin)
+    except ValueError:
+        return
+    session = event.get("session_id")
+    if not session:
+        return
+    if event.get("hook_event_name") == "SessionStart" and event.get("cwd"):
+        _pane_start(session, event["cwd"])
+    elif event.get("hook_event_name") == "SessionEnd":
+        _pane_end(session)
+
+
+def cmd_instructions(args: argparse.Namespace) -> None:
+    text = SKILL.read_text(encoding="utf-8")
+    if text.startswith("---"):
+        text = text.split("---", 2)[2].lstrip()  # drop the skill's front matter
+    print(text, end="")
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
