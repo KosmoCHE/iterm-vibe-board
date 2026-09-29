@@ -289,7 +289,12 @@ function row(item, depth, nChildren) {
     let s = `${p.plan_done}/${p.plan_total}`;
     if (p.incidents) s += ` ⚡${p.incidents}`;
     if (p.inserts) s += ` +${p.inserts}`;
-    badges.append(el("span", "badge progress", s));
+    const progressBadge = el("span", "badge progress", s);
+    const words = [`${p.plan_done} of ${p.plan_total} planned steps done`];
+    if (p.incidents) words.push(`${p.incidents} incident${p.incidents > 1 ? "s" : ""}`);
+    if (p.inserts) words.push(`${p.inserts} inserted`);
+    progressBadge.title = words.join(" · ");
+    badges.append(progressBadge);
   }
   for (const dep of item.depends_on) {
     const d = state.byId[dep];
