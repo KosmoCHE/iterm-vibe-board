@@ -15,6 +15,7 @@ const state = {
   children: {},
   selected: null, // shown in the inspector
   editing: false, // the inspector shows controls instead of text
+  adding: false, // the add form is open (the + in the bottom bar)
   undo: [],
   error: "",
   notice: "",
@@ -455,7 +456,15 @@ function renderAdd() {
   });
   if (f.project) sel.value = f.project;
   sel.hidden = state.tab !== "global";
-  $("#add").hidden = state.tab === "global" ? !Object.keys(b.projects).length : !f.project;
+  const possible = state.tab === "global" ? Object.keys(b.projects).length > 0 : Boolean(f.project);
+  $("#plus").disabled = !possible;
+  $("#add").hidden = !(state.adding && possible);
+}
+
+function openAdd(open) {
+  state.adding = open;
+  renderAdd();
+  if (open) $("#add-title").focus();
 }
 
 function renderStatus() {
@@ -486,6 +495,11 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.key === "Escape" && !inField && state.selected) select(state.editing ? state.selected : null);
 });
+
+$("#plus").onclick = () => openAdd(!state.adding);
+$("#add-title").onkeydown = (e) => {
+  if (e.key === "Escape") openAdd(false);
+};
 
 $("#add").onsubmit = (e) => {
   e.preventDefault();
