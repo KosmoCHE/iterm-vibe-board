@@ -121,13 +121,16 @@ def test_hook_records_the_pane(monkeypatch, tmp_path):
     assert store.identity() == ("s1", "/tmp/a")
     # started again (resume, compaction) after a cd in the shell: the project is the
     # directory Claude Code files the transcript under, decoded from the transcript
-    transcript = tmp_path / store.project_key("/tmp/a") / "s1.jsonl"
+    proj = tmp_path / "proj"
+    (proj / "sub").mkdir(parents=True)
+    transcript = tmp_path / store.project_key(str(proj)) / "s1.jsonl"
     transcript.parent.mkdir()
-    transcript.write_text('{"cwd":"/tmp/elsewhere"}\n{"cwd":"/tmp/a/sub"}\n{"cwd":"/tmp/a"}\n')
-    again = {**event, "cwd": "/tmp/a/sub", "transcript_path": str(transcript)}
+    records = [{"cwd": "/tmp/elsewhere"}, {"cwd": f"{proj}/sub"}, {"cwd": str(proj)}]
+    transcript.write_text("".join(json.dumps(r) + "\n" for r in records))
+    again = {**event, "cwd": f"{proj}/sub", "transcript_path": str(transcript)}
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(again)))
     assert cli.main(["hook"]) == 0
-    assert store.identity() == ("s1", "/tmp/a")
+    assert store.identity() == ("s1", str(proj))
     monkeypatch.setattr(
         "sys.stdin", io.StringIO(json.dumps({**event, "hook_event_name": "SessionEnd"}))
     )
