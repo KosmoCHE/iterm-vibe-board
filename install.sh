@@ -113,7 +113,7 @@ EOF
   elif pgrep -qf "vibeboard_panel.py"; then
     echo "The panel is already running."
   else
-    nohup "$runtime" "$PANEL" >/dev/null 2>&1 &
+    nohup "$runtime" "$PANEL" >"$DATA/panel.log" 2>&1 &
     echo "Panel started; enable it under View › Toolbelt › Vibe Board. iTerm2 starts it itself from now on."
   fi
 }

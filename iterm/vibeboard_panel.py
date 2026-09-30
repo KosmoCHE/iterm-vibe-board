@@ -60,16 +60,17 @@ async def main(connection):
         connection, "Vibe Board", TOOL_ID, False, info["url"]
     )
 
+    # App keeps its own record of which window, tab and session have focus, fed by the
+    # same notifications FocusMonitor delivers. Reading that record is enough; asking
+    # iTerm2 to reload the hierarchy from inside the monitor loop deadlocks it.
     app = await iterm2.async_get_app(connection)
 
-    async def focused_pane():
-        """The session in the key window's current tab, after a fresh look at the hierarchy."""
-        await app.async_refresh()
-        window = app.current_terminal_window
+    def focused_pane():
+        window = app.current_window
         session = window and window.current_tab and window.current_tab.current_session
         return session.session_id if session else None
 
-    pane = await focused_pane()
+    pane = focused_pane()
     post(base, info["token"], "/api/focus", {"pane": pane})
 
     # Any focus event may move the user to another pane: a new session in the same tab,
@@ -77,7 +78,8 @@ async def main(connection):
     async with iterm2.FocusMonitor(connection) as monitor:
         while True:
             await monitor.async_get_next_update()
-            now = await focused_pane()
+            await asyncio.sleep(0.05)  # let App apply the same notification first
+            now = focused_pane()
             if now != pane:
                 pane = now
                 post(base, info["token"], "/api/focus", {"pane": pane})
