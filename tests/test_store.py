@@ -96,6 +96,17 @@ def test_corrupt_item_file_loses_only_that_item(tmp_home):
     assert set(store.load_all()) == {keep["id"]}
 
 
+def test_start_and_done_times_come_from_the_clock():
+    item = store.create("a", "/tmp/a")
+    assert item["started_at"] is None
+    started = store.update(item["id"], status="doing")["started_at"]
+    assert started
+    assert store.update(item["id"], status="waiting")["started_at"] == started  # first start sticks
+    assert store.update(item["id"], status="done")["done_at"]
+    with pytest.raises(ValueError):
+        store.update(item["id"], started_at="2026-01-01")
+
+
 def test_description_is_free_text():
     item = store.create("a", "/tmp/a", description="why\nand how")
     assert item["description"] == "why\nand how"

@@ -6,6 +6,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `started_at` is stamped by the clock when an item first becomes `doing`,
+  like `done_at`; the hand-set `start` date is gone. The inspector shows
+  created, started and done times.
+
 ## [0.1.0] - 2026-09-29
 
 First usable version. Everything runs from a clone via `install.sh`; the

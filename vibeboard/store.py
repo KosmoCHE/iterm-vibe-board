@@ -39,8 +39,8 @@ DEFAULTS = {
     "depends_on": [],
     "next": "",
     "waiting_for": "",
-    "start": None,
     "due": None,
+    "started_at": None,  # set by the clock when the status first becomes doing
     "done_at": None,
 }
 # Fields a caller may set. `origin` and `created_by` are history: fixed at creation.
@@ -54,7 +54,6 @@ EDITABLE = {
     "depends_on",
     "next",
     "waiting_for",
-    "start",
     "due",
 }
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -217,6 +216,7 @@ def create(title: str, project: str, **fields) -> dict:
     items = load_all()
     item = dict(DEFAULTS, id=new_id(items), project=project, created_at=now(), updated_at=now())
     item.update(_validated(fields, items, creating=True))
+    _stamp(item, item["status"])
     item["title"] = title.strip()
     if not item["title"]:
         raise ValueError("title is empty")
@@ -232,7 +232,7 @@ def update(item_id: str, **fields) -> dict:
     old_path = _item_path(item)
     item.update(changes)
     if "status" in changes:
-        item["done_at"] = now() if item["status"] == "done" else None
+        _stamp(item, changes["status"])
     item["updated_at"] = now()
     new_path = _item_path(item)
     if new_path != old_path:  # moved to another project: numbers are per project
@@ -242,6 +242,13 @@ def update(item_id: str, **fields) -> dict:
     if new_path != old_path:
         old_path.unlink()
     return item
+
+
+def _stamp(item: dict, status: str) -> None:
+    """Timestamps come from the clock, never from the caller."""
+    if status == "doing" and not item.get("started_at"):
+        item["started_at"] = now()
+    item["done_at"] = now() if status == "done" else None
 
 
 def archive(item_id: str, restore: bool = False) -> list[dict]:
@@ -290,7 +297,7 @@ def _validated(fields: dict, items: dict, creating: bool, self_id: str | None = 
             for dep in value:
                 if dep not in items:
                     raise KeyError(dep)
-        if key in ("start", "due") and value is not None and not _DATE.match(str(value)):
+        if key == "due" and value is not None and not _DATE.match(str(value)):
             raise ValueError(f"{key} must look like 2026-09-29")
         if key in ("description", "next", "waiting_for") and value is None:
             value = ""

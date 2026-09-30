@@ -132,7 +132,6 @@ def _field_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--waiting", dest="waiting_for", help="who or what this waits for")
     p.add_argument("--depends", help="comma-separated ids this depends on")
     p.add_argument("--due", help="YYYY-MM-DD")
-    p.add_argument("--start", help="YYYY-MM-DD")
 
 
 def _fields(args: argparse.Namespace) -> dict:
@@ -142,11 +141,10 @@ def _fields(args: argparse.Namespace) -> dict:
         ("next_step", "next"),
         ("waiting_for", "waiting_for"),
         ("due", "due"),
-        ("start", "start"),
     ):
         value = getattr(args, attr, None)
         if value is not None:
-            out[key] = value or None if key in ("due", "start") else value
+            out[key] = value or None if key == "due" else value
     if getattr(args, "depends", None) is not None:
         out["depends_on"] = [d.strip() for d in args.depends.split(",") if d.strip()]
     return out

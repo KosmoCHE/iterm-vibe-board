@@ -31,7 +31,7 @@ vibeboard list [--all | --project PATH] [--mine]      what is on the board
 vibeboard show ID
 vibeboard add "title" [--parent ID] [--origin plan|issue|added] [--desc "…"]
                    [--next "…"] [--waiting "…"] [--due 2026-10-03]
-vibeboard claim ID                                     you push this item; status → doing
+vibeboard claim ID                                     you push this item; status → doing (start time is stamped)
 vibeboard set ID --desc "…" | --next "…" | --waiting "…" | --status S | --depends ID,ID
 vibeboard done ID
 ```

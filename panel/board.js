@@ -489,12 +489,19 @@ function renderInspector() {
   } else {
     if (item.description) box.append(el("div", "desc", item.description));
     box.append(field("Status", el("span", "", b.labels[item.status])));
+    box.append(field("Created", el("span", "", when(item.created_at))));
+    if (item.started_at) box.append(field("Started", el("span", "", when(item.started_at))));
+    if (item.done_at) box.append(field("Done", el("span", "", when(item.done_at))));
     box.append(field("Driver", el("span", "", item.driver ? "@" + whoName(item.driver) : "no session")));
     if (item.next) box.append(field("Next", el("span", "", item.next)));
     if (item.waiting_for) box.append(field("Waiting for", el("span", "", item.waiting_for)));
     if (item.due) box.append(field("Due", el("span", "", item.due)));
   }
   box.hidden = false;
+}
+
+function when(iso) {
+  return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function field(label, control) {
