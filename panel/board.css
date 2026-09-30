@@ -69,10 +69,13 @@ h2 .path { font-weight: 400; }
          white-space: nowrap; max-width: 11em; overflow: hidden; text-overflow: ellipsis; }
 .badge.issue { color: var(--danger); font-weight: 600; }
 .badge.added { color: var(--warn); font-weight: 600; }
-/* same colours as iTerm2's Session Status: working is yellow, waiting is blue, idle is grey */
-.badge.status.doing { color: var(--warn); }
-.badge.status.waiting { color: var(--accent); }
-.badge.status.later { color: var(--muted); }
+/* same colours as iTerm2's Session Status: working is yellow, waiting is blue, idle is grey.
+   The rules apply to the list's badges and to the inspector's text alike. */
+.status.doing { color: var(--warn); }
+.status.waiting, .waiting { color: var(--accent); }
+.status.later { color: var(--muted); }
+.next { color: var(--fg); }
+.inspector .field .driver { color: var(--fg); }
 .badge.driver { color: var(--fg); border: 1px solid var(--line); background: none; }
 .badge.driver.ended { color: var(--muted); border-style: dashed; }
 

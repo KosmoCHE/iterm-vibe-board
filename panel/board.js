@@ -375,8 +375,8 @@ function row(item, depth, nChildren) {
   content.append(title, badges);
   if (state.tab === "session" && (item.next || item.waiting_for)) {
     const detail = el("div", "detail");
-    if (item.next) detail.append(el("span", "", "next: " + item.next));
-    if (item.waiting_for) detail.append(el("span", "", "waiting: " + item.waiting_for));
+    if (item.next) detail.append(el("span", "next", "next: " + item.next));
+    if (item.waiting_for) detail.append(el("span", "waiting", "waiting: " + item.waiting_for));
     content.append(detail);
   }
   line.append(caret, box, num, content);
@@ -488,13 +488,13 @@ function renderInspector() {
     box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
   } else {
     if (item.description) box.append(el("div", "desc", item.description));
-    box.append(field("Status", el("span", "", b.labels[item.status])));
+    box.append(field("Status", el("span", "status " + item.status, b.labels[item.status])));
     box.append(field("Created", el("span", "", when(item.created_at))));
     if (item.started_at) box.append(field("Started", el("span", "", when(item.started_at))));
     if (item.done_at) box.append(field("Done", el("span", "", when(item.done_at))));
-    box.append(field("Driver", el("span", "", item.driver ? "@" + whoName(item.driver) : "no session")));
-    if (item.next) box.append(field("Next", el("span", "", item.next)));
-    if (item.waiting_for) box.append(field("Waiting for", el("span", "", item.waiting_for)));
+    box.append(field("Driver", el("span", item.driver ? "driver" : "", item.driver ? "@" + whoName(item.driver) : "no session")));
+    if (item.next) box.append(field("Next", el("span", "next", item.next)));
+    if (item.waiting_for) box.append(field("Waiting for", el("span", "waiting", item.waiting_for)));
     if (item.due) box.append(field("Due", el("span", "", item.due)));
   }
   box.hidden = false;
