@@ -329,31 +329,40 @@ def cmd_hook(args: argparse.Namespace) -> None:
     if not session:
         return
     if event.get("hook_event_name") == "SessionStart" and event.get("cwd"):
-        _pane_start(session, _launch_dir(event))
+        _pane_start(session, _project_dir(event))
     elif event.get("hook_event_name") == "SessionEnd":
         _pane_end(session)
 
 
-def _launch_dir(event: dict) -> str:
-    """Where the session was started.
+def _project_dir(event: dict) -> str:
+    """The directory Claude Code itself files this session under.
 
-    SessionStart fires again on resume, /clear and compaction, by which time the cwd
-    may have moved (/cd, or Claude Code following a shell cd), and the transcript
-    itself moves with it. The first record in the transcript still carries the cwd
-    the session began in; that is the project, as in Claude Code's own bookkeeping.
+    That is where the session was launched, moved only by /cd, never by a cd in the
+    shell. It shows in the transcript's location, ~/.claude/projects/<key>/, but the
+    key is a lossy encoding of the path. The event's cwd follows the shell, so it is
+    taken only when it encodes to that key; otherwise the transcript's own records
+    (each carries the cwd of its moment) are searched for a directory that does.
     """
+    cwd = event["cwd"]
+    path = event.get("transcript_path")
+    if not path:
+        return cwd
+    key = os.path.basename(os.path.dirname(path))
+    if store.project_key(cwd) == key:
+        return cwd
     try:
-        with open(event.get("transcript_path") or "", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 try:
                     record = json.loads(line)
                 except ValueError:
                     continue
-                if record.get("cwd"):
-                    return record["cwd"]
+                seen = record.get("cwd")
+                if seen and store.project_key(seen) == key and os.path.isdir(seen):
+                    return seen  # isdir: the directory may have been renamed since
     except OSError:
-        pass  # no transcript yet: this is the first start, and the cwd is the launch directory
-    return event["cwd"]
+        pass
+    return cwd
 
 
 def cmd_instructions(args: argparse.Namespace) -> None:

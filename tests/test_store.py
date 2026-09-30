@@ -119,9 +119,11 @@ def test_hook_records_the_pane(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
     assert cli.main(["hook"]) == 0
     assert store.identity() == ("s1", "/tmp/a")
-    # started again after /cd (resume, compaction): the transcript says where it began
-    transcript = tmp_path / "s1.jsonl"
-    transcript.write_text('{"type":"x"}\n{"cwd":"/tmp/a","type":"user"}\n')
+    # started again (resume, compaction) after a cd in the shell: the project is the
+    # directory Claude Code files the transcript under, decoded from the transcript
+    transcript = tmp_path / store.project_key("/tmp/a") / "s1.jsonl"
+    transcript.parent.mkdir()
+    transcript.write_text('{"cwd":"/tmp/elsewhere"}\n{"cwd":"/tmp/a/sub"}\n{"cwd":"/tmp/a"}\n')
     again = {**event, "cwd": "/tmp/a/sub", "transcript_path": str(transcript)}
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(again)))
     assert cli.main(["hook"]) == 0
