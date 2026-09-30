@@ -96,6 +96,25 @@ def test_corrupt_item_file_loses_only_that_item(tmp_home):
     assert set(store.load_all()) == {keep["id"]}
 
 
+def test_nested_session_hands_the_pane_back(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+
+    def feed(e):
+        monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(e)))
+
+    feed({"hook_event_name": "SessionStart", "session_id": "outer", "cwd": "/tmp/a"})
+    cli.main(["hook"])
+    feed({"hook_event_name": "SessionStart", "session_id": "inner", "cwd": "/tmp/a/scratch"})
+    cli.main(["hook"])
+    assert store.identity() == ("inner", "/tmp/a/scratch")
+    feed({"hook_event_name": "SessionEnd", "session_id": "inner"})
+    cli.main(["hook"])
+    assert store.identity() == ("outer", "/tmp/a")  # the agent's own `claude -p` came and went
+    feed({"hook_event_name": "SessionEnd", "session_id": "outer"})
+    cli.main(["hook"])
+    assert store.identity() == (store.ME, None)
+
+
 def test_start_and_done_times_come_from_the_clock():
     item = store.create("a", "/tmp/a")
     assert item["started_at"] is None

@@ -303,19 +303,31 @@ def _pane_start(session: str, project: str) -> None:
     if not pane:  # outside iTerm2 or inside tmux there is nothing trustworthy to record
         return
     info = store.get_pane(pane) or {}
+    outer = info.get("outer") or []
+    if info.get("session") and info["session"] != session and not info.get("ended_at"):
+        # A session started inside a running one: the agent ran `claude` itself. The
+        # pane belongs to the inner one until it ends, then goes back to the outer.
+        outer = outer + [{k: info[k] for k in ("session", "project", "started_at")}]
+    same = info.get("session") == session
     store.set_pane(
         pane,
         session=session,
         project=os.path.abspath(project),
-        started_at=info.get("started_at") or store.now(),
+        started_at=(info.get("started_at") if same else None) or store.now(),
         ended_at=None,
+        outer=outer,
     )
 
 
 def _pane_end(session: str) -> None:
     pane = store.current_pane()
     info = store.get_pane(pane) if pane else None
-    if info and info.get("session") == session:
+    if not info or info.get("session") != session:
+        return
+    outer = info.get("outer") or []
+    if outer:  # back to the session this one ran inside
+        store.set_pane(pane, **outer[-1], ended_at=None, outer=outer[:-1])
+    else:
         store.set_pane(pane, ended_at=store.now())
 
 
@@ -328,10 +340,27 @@ def cmd_hook(args: argparse.Namespace) -> None:
     session = event.get("session_id")
     if not session:
         return
+    _hook_log(event)
     if event.get("hook_event_name") == "SessionStart" and event.get("cwd"):
         _pane_start(session, _project_dir(event))
     elif event.get("hook_event_name") == "SessionEnd":
         _pane_end(session)
+
+
+def _hook_log(event: dict) -> None:
+    """One line per hook event in <home>/hook.log, for when a pane looks wrong."""
+    try:
+        path = store.home() / "hook.log"
+        if path.exists() and path.stat().st_size > 200_000:
+            path.unlink()
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(
+                f"{store.now()} {event.get('hook_event_name')} {event.get('source', '')} "
+                f"session={event.get('session_id', '')[:8]} pane={store.current_pane()} "
+                f"cwd={event.get('cwd')}\n"
+            )
+    except OSError:
+        pass
 
 
 def _project_dir(event: dict) -> str:
