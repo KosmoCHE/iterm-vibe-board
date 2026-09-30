@@ -108,6 +108,10 @@ def test_hook_records_the_pane(monkeypatch):
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
     assert cli.main(["hook"]) == 0
     assert store.identity() == ("s1", "/tmp/a")
+    # the same session starting again after /cd (resume, compaction) keeps its launch directory
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps({**event, "cwd": "/tmp/a/sub"})))
+    assert cli.main(["hook"]) == 0
+    assert store.identity() == ("s1", "/tmp/a")
     monkeypatch.setattr(
         "sys.stdin", io.StringIO(json.dumps({**event, "hook_event_name": "SessionEnd"}))
     )

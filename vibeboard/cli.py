@@ -302,14 +302,21 @@ def cmd_pane_end(args: argparse.Namespace) -> None:
 
 def _pane_start(session: str, project: str) -> None:
     pane = store.current_pane()
-    if pane:  # outside iTerm2 or inside tmux there is nothing trustworthy to record
-        store.set_pane(
-            pane,
-            session=session,
-            project=os.path.abspath(project),
-            started_at=store.now(),
-            ended_at=None,
-        )
+    if not pane:  # outside iTerm2 or inside tmux there is nothing trustworthy to record
+        return
+    info = store.get_pane(pane) or {}
+    if info.get("session") == session and info.get("project"):
+        # SessionStart fires again on resume, /clear and compaction, with whatever the
+        # cwd is by then. The project is where the session was launched: keep the
+        # first answer, like Claude Code's own ~/.claude/projects/<key>.
+        project = info["project"]
+    store.set_pane(
+        pane,
+        session=session,
+        project=os.path.abspath(project),
+        started_at=info.get("started_at") or store.now(),
+        ended_at=None,
+    )
 
 
 def _pane_end(session: str) -> None:
