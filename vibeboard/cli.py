@@ -293,19 +293,19 @@ def _print_item(item: dict, children: dict, everything: dict, depth: int) -> Non
 
 
 def cmd_pane_start(args: argparse.Namespace) -> None:
-    _pane_start(args.session, args.project)
+    _pane_start(args.session, args.project, correct=True)  # typed by hand: meant to override
 
 
 def cmd_pane_end(args: argparse.Namespace) -> None:
     _pane_end(args.session)
 
 
-def _pane_start(session: str, project: str) -> None:
+def _pane_start(session: str, project: str, correct: bool = False) -> None:
     pane = store.current_pane()
     if not pane:  # outside iTerm2 or inside tmux there is nothing trustworthy to record
         return
     info = store.get_pane(pane) or {}
-    if info.get("session") == session and info.get("project"):
+    if not correct and info.get("session") == session and info.get("project"):
         # SessionStart fires again on resume, /clear and compaction, with whatever the
         # cwd is by then. The project is where the session was launched: keep the
         # first answer, like Claude Code's own ~/.claude/projects/<key>.
