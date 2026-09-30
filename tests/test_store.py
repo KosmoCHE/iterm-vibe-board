@@ -102,14 +102,17 @@ def test_description_is_free_text():
     assert store.update(item["id"], description=None)["description"] == ""
 
 
-def test_hook_records_the_pane(monkeypatch):
+def test_hook_records_the_pane(monkeypatch, tmp_path):
     monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
     event = {"hook_event_name": "SessionStart", "session_id": "s1", "cwd": "/tmp/a"}
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
     assert cli.main(["hook"]) == 0
     assert store.identity() == ("s1", "/tmp/a")
-    # the same session starting again after /cd (resume, compaction) keeps its launch directory
-    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps({**event, "cwd": "/tmp/a/sub"})))
+    # started again after /cd (resume, compaction): the transcript says where it began
+    transcript = tmp_path / "s1.jsonl"
+    transcript.write_text('{"type":"x"}\n{"cwd":"/tmp/a","type":"user"}\n')
+    again = {**event, "cwd": "/tmp/a/sub", "transcript_path": str(transcript)}
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(again)))
     assert cli.main(["hook"]) == 0
     assert store.identity() == ("s1", "/tmp/a")
     monkeypatch.setattr(

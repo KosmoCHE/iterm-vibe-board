@@ -293,23 +293,18 @@ def _print_item(item: dict, children: dict, everything: dict, depth: int) -> Non
 
 
 def cmd_pane_start(args: argparse.Namespace) -> None:
-    _pane_start(args.session, args.project, correct=True)  # typed by hand: meant to override
+    _pane_start(args.session, args.project)
 
 
 def cmd_pane_end(args: argparse.Namespace) -> None:
     _pane_end(args.session)
 
 
-def _pane_start(session: str, project: str, correct: bool = False) -> None:
+def _pane_start(session: str, project: str) -> None:
     pane = store.current_pane()
     if not pane:  # outside iTerm2 or inside tmux there is nothing trustworthy to record
         return
     info = store.get_pane(pane) or {}
-    if not correct and info.get("session") == session and info.get("project"):
-        # SessionStart fires again on resume, /clear and compaction, with whatever the
-        # cwd is by then. The project is where the session was launched: keep the
-        # first answer, like Claude Code's own ~/.claude/projects/<key>.
-        project = info["project"]
     store.set_pane(
         pane,
         session=session,
@@ -336,9 +331,31 @@ def cmd_hook(args: argparse.Namespace) -> None:
     if not session:
         return
     if event.get("hook_event_name") == "SessionStart" and event.get("cwd"):
-        _pane_start(session, event["cwd"])
+        _pane_start(session, _launch_dir(event))
     elif event.get("hook_event_name") == "SessionEnd":
         _pane_end(session)
+
+
+def _launch_dir(event: dict) -> str:
+    """Where the session was started.
+
+    SessionStart fires again on resume, /clear and compaction, by which time the cwd
+    may have moved (/cd, or Claude Code following a shell cd), and the transcript
+    itself moves with it. The first record in the transcript still carries the cwd
+    the session began in; that is the project, as in Claude Code's own bookkeeping.
+    """
+    try:
+        with open(event.get("transcript_path") or "", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if record.get("cwd"):
+                    return record["cwd"]
+    except OSError:
+        pass  # no transcript yet: this is the first start, and the cwd is the launch directory
+    return event["cwd"]
 
 
 def cmd_instructions(args: argparse.Namespace) -> None:
