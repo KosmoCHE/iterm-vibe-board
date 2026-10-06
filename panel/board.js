@@ -150,6 +150,35 @@ function projectName(path) {
   return p ? p.name : path.split("/").pop();
 }
 
+function shortId(id) {
+  // the shortest prefix, at least 4 characters, that names only this item: what agents type
+  const ids = Object.keys(state.byId);
+  for (let n = 4; n < id.length; n++) if (ids.filter((x) => x.startsWith(id.slice(0, n))).length === 1) return id.slice(0, n);
+  return id;
+}
+
+// Show an item wherever it is: switch to Global if the current tab cannot see it,
+// unfold its parent, open the done block it may sit in, then select it.
+function jumpTo(item) {
+  const f = focus();
+  const visible =
+    state.tab === "global" ? !state.filter || scopeItems().some((i) => i.id === item.id)
+    : state.tab === "project" ? item.project === f.project
+    : item.driver === f.session;
+  if (!visible) {
+    state.tab = "global";
+    state.filter = "";
+    localStorage.setItem("vibeboard.tab", state.tab);
+  }
+  if (item.parent) state.fold[state.tab + ":" + item.parent] = true;
+  if (item.status === "done") {
+    const key = item.parent || (state.tab === "global" ? "root:" + item.project : "root");
+    state.showDone[state.tab + ":" + key] = true;
+  }
+  render();
+  select(item.id);
+}
+
 function projectPath(path) {
   return path.replace(/^\/Users\/[^/]+(?=\/|$)/, "~");
 }
@@ -340,7 +369,6 @@ function row(item, depth, nChildren) {
   box.checked = item.status === "done";
   box.onchange = () => patch(item.id, { status: box.checked ? "done" : "todo" });
 
-  const num = el("span", "num", "#" + item.num);
   const title = el("span", "title", item.title);
 
   const badges = el("span", "badges");
@@ -360,8 +388,9 @@ function row(item, depth, nChildren) {
   for (const dep of item.depends_on) {
     const d = state.byId[dep];
     if (!d || d.status === "done") continue;
-    const badge = el("span", "badge dep", "⏳ " + (d.project !== item.project ? projectName(d.project) + " " : "") + "#" + d.num);
-    badge.title = "waits for: " + d.title;
+    const badge = el("button", "badge dep", "⏳ " + (d.project !== item.project ? projectName(d.project) + ": " : "") + d.title);
+    badge.title = "waits for: " + d.title + " — click to go there";
+    badge.onclick = () => jumpTo(d);
     badges.append(badge);
   }
   if (item.driver) badges.append(driverChip(item));
@@ -379,7 +408,7 @@ function row(item, depth, nChildren) {
     if (item.waiting_for) detail.append(el("span", "waiting", "waiting: " + item.waiting_for));
     content.append(detail);
   }
-  line.append(caret, box, num, content);
+  line.append(caret, box, content);
   // Click shows or hides the details, double-click edits. The click waits a beat so a
   // double-click does not open and close the details on its way in.
   let pending = null;
@@ -414,8 +443,9 @@ function openMenu(item, x, y) {
     };
     m.append(b);
   };
-  action(`Add a step under #${item.num}`, () => openAdd(true, item.id));
-  action(`Delete #${item.num}`, () => remove(item));
+  if (!item.parent) action("Add a step under this", () => openAdd(true, item.id)); // steps have no steps
+  action("Copy title", () => navigator.clipboard.writeText(item.title).then(() => setNotice("Copied the title"), showError));
+  action("Delete", () => remove(item));
   state.menu = item.id;
   m.hidden = false;
   m.style.left = Math.min(x, innerWidth - m.offsetWidth - 8) + "px";
@@ -468,13 +498,13 @@ function renderInspector() {
 
   const b = state.board;
   const head = el("div", "head");
-  const meta = el("span", "meta", `${item.origin} · by @${whoName(item.created_by)} · ${projectPath(item.project)}`);
+  const meta = el("span", "meta", `${shortId(item.id)} · ${item.origin} · by @${whoName(item.created_by)} · ${projectPath(item.project)}`);
   const toggle = el("button", "toggle", state.editing ? "Done" : "Edit");
   toggle.onclick = () => select(item.id, !state.editing);
   const close = el("button", "close", "×");
   close.title = "Close (Esc)";
   close.onclick = () => select(null);
-  head.append(el("b", "", `#${item.num} ${item.title}`), meta, toggle, close);
+  head.append(el("b", "", item.title), meta, toggle, close);
   head.title = "id " + item.id;
   box.append(head);
 
@@ -587,7 +617,7 @@ function renderAdd() {
   sel.hidden = state.tab !== "global" || Boolean(parent);
   const under = $("#add-under");
   under.hidden = !parent;
-  under.textContent = parent ? `under #${parent.num} ${parent.title}` : "";
+  under.textContent = parent ? `under: ${parent.title}` : "";
   $("#add-title").placeholder = parent ? "New step, Enter to add, Esc to close" : "New item, Enter to add, Esc to close";
   const possible = state.tab === "global" ? Object.keys(b.projects).length > 0 : Boolean(f.project);
   $("#plus").disabled = !possible;

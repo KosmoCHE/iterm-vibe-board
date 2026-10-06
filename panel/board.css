@@ -44,7 +44,7 @@ h2 .path { font-weight: 400; }
 .row { padding: 0 8px 0 calc(8px + var(--depth, 0) * 14px); }
 .row:hover { background: var(--hover); }
 .row.selected { background: var(--selected); }
-.row .line { display: grid; grid-template-columns: 16px min-content max-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
+.row .line { display: grid; grid-template-columns: 16px min-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
 .row.done { background: var(--done); }
 .row.fold { background: var(--done-head); }
 .row.done:hover { background: var(--done-head); }
@@ -59,7 +59,6 @@ h2 .path { font-weight: 400; }
 .caret.open::before { border: 6px solid transparent; border-top: 8px solid currentColor; border-bottom: 0; }
 .caret:disabled { visibility: hidden; }
 .box { margin: 0; position: relative; top: 2px; }
-.num { color: var(--muted); font-size: 10.5px; }
 .content { display: flex; flex-wrap: wrap; gap: 2px 5px; align-items: baseline; min-width: 0; }
 .title { word-break: break-word; }
 .detail { flex-basis: 100%; color: var(--muted); display: flex; flex-direction: column; }

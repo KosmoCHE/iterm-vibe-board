@@ -121,6 +121,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sv.set_defaults(func=cmd_serve)
 
+    mg = sub.add_parser("migrate", help="update data written by an earlier version")
+    mg.set_defaults(func=lambda a: print(store.migrate()))
+
     ins = sub.add_parser("instructions", help="how an agent should use the board")
     ins.set_defaults(func=cmd_instructions)
     return p
@@ -160,7 +163,7 @@ def _emit(item: dict, as_json: bool) -> None:
     if as_json:
         print(json.dumps(item, ensure_ascii=False))
     else:
-        print(store.ref(item))
+        print(store.short(item["id"], store.load_all()))
 
 
 def _resolve(text: str, args: argparse.Namespace, project: str | None = None) -> str:
@@ -279,10 +282,11 @@ def _print_item(item: dict, children: dict, everything: dict, depth: int) -> Non
         d = everything.get(dep)
         if d and d["status"] != "done":
             same = d["project"] == item["project"]
-            tags.append("⏳" + ("" if same else os.path.basename(d["project"])) + store.ref(d))
+            where = "" if same else os.path.basename(d["project"]) + "/"
+            tags.append("⏳" + where + store.short(d["id"], everything))
     mark = STATUS_MARK[item["status"]]
-    num = store.ref(item).rjust(5)
-    line = f"{'  ' * depth}{num}  {mark} {item['title']}{ORIGIN_MARK[item['origin']]}"
+    ident = store.short(item["id"], everything).ljust(6)
+    line = f"{'  ' * depth}{ident}  {mark} {item['title']}{ORIGIN_MARK[item['origin']]}"
     if tags:
         line += "  [" + ", ".join(tags) + "]"
     print(line)

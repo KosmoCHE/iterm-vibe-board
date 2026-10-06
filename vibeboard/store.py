@@ -14,7 +14,6 @@ different items never touch each other and a torn write can lose at most one ite
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import re
@@ -57,6 +56,7 @@ EDITABLE = {
     "due",
 }
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_HEX = re.compile(r"^[0-9a-f]+$")
 
 
 def home() -> Path:
@@ -173,27 +173,41 @@ def new_id(existing: dict) -> str:
             return candidate
 
 
-def _next_num(project: str) -> int:
-    """The human-facing number, sequential within a project. The only locked write."""
-    d = project_dir(project)
-    d.mkdir(parents=True, exist_ok=True)
-    with open(d / ".lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        counter = d / "counter"
-        n = int(counter.read_text()) + 1 if counter.exists() else 1
-        counter.write_text(str(n))
-        return n
-
-
-def ref(item: dict) -> str:
-    return f"#{item['num']}"
+def short(item_id: str, items: dict) -> str:
+    """The shortest prefix, at least 4 characters, that names only this item."""
+    for n in range(4, len(item_id) + 1):
+        if sum(1 for i in items if i.startswith(item_id[:n])) == 1:
+            return item_id[:n]
+    return item_id
 
 
 def resolve(text: str, project: str | None = None, items: dict | None = None) -> str:
-    """Turn what a human types into an id: a hash, '#12' in a project, or 'name#12'."""
+    """Turn what a human or an agent types into an id.
+
+    Accepts the id or a unique prefix of it, a unique part of the title (case does not
+    matter) and, for items that still carry one, the old '#12' / 'name#12' numbers.
+    """
     items = load_all() if items is None else items
+    text = text.strip()
     if text in items:
         return text
+    if "#" in text:
+        return _resolve_number(text, project, items)
+    low = text.lower()
+    hits = [i for i in items if i.startswith(low)] if _HEX.match(low) else []
+    if len(hits) == 1:
+        return hits[0]
+    if len(hits) > 1:
+        raise ValueError(f"{text} starts several ids; type more of it")
+    hits = [i["id"] for i in items.values() if low in i["title"].lower()]
+    if len(hits) == 1:
+        return hits[0]
+    if len(hits) > 1:
+        raise ValueError(f"'{text}' is in {len(hits)} titles; say more of it, or use the id")
+    raise KeyError(text)
+
+
+def _resolve_number(text: str, project: str | None, items: dict) -> str:
     prefix, _, number = text.rpartition("#")
     if not number.isdigit():
         raise KeyError(text)
@@ -220,7 +234,6 @@ def create(title: str, project: str, **fields) -> dict:
     item["title"] = title.strip()
     if not item["title"]:
         raise ValueError("title is empty")
-    item["num"] = _next_num(project)
     _write_json(_item_path(item), item)
     return item
 
@@ -234,14 +247,35 @@ def update(item_id: str, **fields) -> dict:
     if "status" in changes:
         _stamp(item, changes["status"])
     item["updated_at"] = now()
-    new_path = _item_path(item)
-    if new_path != old_path:  # moved to another project: numbers are per project
-        item["num"] = _next_num(item["project"])
-        new_path = _item_path(item)
+    new_path = _item_path(item)  # another project means another directory
     _write_json(new_path, item)
     if new_path != old_path:
         old_path.unlink()
     return item
+
+
+def migrate() -> dict:
+    """Bring data written by earlier versions up to date. Safe to run again.
+
+    Flattens anything deeper than item → step onto its top item, and removes the
+    per-project counters that numbered items until 0.1.
+    """
+    live, gone = load_all(), load_all(archived=True)
+    every = {**gone, **live}
+    flattened = 0
+    for item in every.values():
+        top = item["parent"]
+        while top in every and every[top]["parent"] in every:
+            top = every[top]["parent"]
+        if top in every and top != item["parent"]:
+            item["parent"] = top
+            _write_json(_item_path(item, archived=item["id"] in gone), item)
+            flattened += 1
+    for stale in (home() / "projects").glob("*/counter"):
+        stale.unlink()
+    for stale in (home() / "projects").glob("*/.lock"):
+        stale.unlink()
+    return {"flattened": flattened}
 
 
 def _stamp(item: dict, status: str) -> None:
@@ -292,6 +326,11 @@ def _validated(fields: dict, items: dict, creating: bool, self_id: str | None = 
                 raise ValueError("an item cannot be its own parent")
             if value not in items:
                 raise KeyError(value)
+            # Two levels only: an item and its steps. A step that needs a plan is an item.
+            if items[value]["parent"]:
+                raise ValueError("a step cannot have steps; add this under the item itself")
+            if self_id and any(i["parent"] == self_id for i in items.values()):
+                raise ValueError("this item has steps of its own, so it stays an item")
         if key == "depends_on":
             value = list(dict.fromkeys(value))
             for dep in value:

@@ -36,8 +36,13 @@ vibeboard set ID --desc "…" | --next "…" | --waiting "…" | --status S | --
 vibeboard done ID
 ```
 
-Add `--json` to any command for machine-readable output. `#12` names item 12
-in your project, `name#12` one in another project.
+Add `--json` to any command for machine-readable output. `vibeboard list` prints
+each item's id first; ID is that id, any prefix of it that is unique, or a unique
+part of the title.
+
+Two levels only: an item and its steps. A step never has steps; if one needs a
+plan of its own, make it an item. Depend on the smallest set: waiting for all
+of an item's steps means depending on the item.
 
 ## Statuses
 
