@@ -50,6 +50,7 @@ h2 .path { font-weight: 400; }
 .row.done:hover { background: var(--done-head); }
 .row.fold:hover { background: color-mix(in srgb, #34c759 20%, transparent); }
 .row.done .title { color: var(--muted); text-decoration: line-through; }
+.row.blocked .title { color: var(--muted); } /* waiting on another item: not yours to start */
 .row.fold { color: var(--muted); font-size: 11px; }
 .row.fold .line { grid-template-columns: 16px 1fr; }
 /* the triangle sits centred on the first line of text, whatever wraps below it */

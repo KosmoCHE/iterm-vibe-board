@@ -332,7 +332,25 @@ function list(items, key, depth, kids) {
     out.push(doneFold(done.length, k, depth));
     if (state.showDone[k]) done.forEach((i) => out.push(...rows(i, kids, depth)));
   }
-  items.filter((i) => i.status !== "done").forEach((i) => out.push(...rows(i, kids, depth)));
+  ordered(items.filter((i) => i.status !== "done")).forEach((i) => out.push(...rows(i, kids, depth)));
+  return out;
+}
+
+// Is anything this item depends on still open?
+function blocked(item) {
+  return item.depends_on.some((d) => state.byId[d] && state.byId[d].status !== "done");
+}
+
+// One level reads top to bottom as now → next → waiting → blocked → later, oldest first
+// within a group, and a blocked item always below the siblings it waits for.
+const RANK = { doing: 0, todo: 1, waiting: 2, later: 4 };
+function ordered(items) {
+  const rank = (i) => (blocked(i) && i.status !== "later" ? 3 : RANK[i.status]);
+  const out = items.slice().sort((x, y) => rank(x) - rank(y) || x.created_at.localeCompare(y.created_at));
+  for (let n = 0; n < out.length; n++) {
+    const last = Math.max(-1, ...out[n].depends_on.map((d) => out.findIndex((i) => i.id === d && i.status !== "done")));
+    if (last > n) out.splice(last + 1, 0, ...out.splice(n--, 1)); // move it just below its last blocker
+  }
   return out;
 }
 
@@ -351,7 +369,7 @@ function doneFold(n, key, depth) {
 
 function row(item, depth, nChildren) {
   const b = state.board;
-  const r = el("div", "row" + (item.status === "done" ? " done" : "") + (item.id === state.selected ? " selected" : ""));
+  const r = el("div", "row" + (item.status === "done" ? " done" : "") + (blocked(item) ? " blocked" : "") + (item.id === state.selected ? " selected" : ""));
   r.dataset.id = item.id;
   r.style.setProperty("--depth", depth);
   const line = el("div", "line");
