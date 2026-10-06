@@ -1,6 +1,6 @@
 ---
 name: vibeboard
-description: Keep the human's progress board (the Vibe Board panel in iTerm2) up to date. Use when you start a piece of work, when something unplanned comes up, when you are blocked, and when a step is done.
+description: Keep the human's progress board (the Vibe Board panel in iTerm2) up to date. Use whenever the user asks to record, add, change or look up a todo, task, step, memo or plan in any wording ("登记 todo", "记到看板", "记个备忘", "加个 task", "what's on the board"), and on your own when you start a piece of work, when something unplanned comes up, when you are blocked, and when a step is done.
 ---
 
 # Vibe Board: the human's progress board
