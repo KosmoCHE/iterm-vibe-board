@@ -8,9 +8,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Items have no numbers any more. They are named by title, or by any unique
+  prefix of their id (`vibeboard list` prints it first); the `#12` /
+  `name#12` syntax and the per-project counter and lock are gone. Numbers
+  written by 0.1 stay readable until those items are gone.
+- Two levels only: an item and its steps. `vibeboard migrate` flattens
+  deeper data from 0.1.
+- A level reads now → next → waiting → blocked → later; blocked items are
+  dimmed and sit below the siblings they wait for.
+- Dependency badges show the blocker's title and jump to it; the context
+  menu copies the title and offers "add a step" only on items.
 - `started_at` is stamped by the clock when an item first becomes `doing`,
   like `done_at`; the hand-set `start` date is gone. The inspector shows
   created, started and done times.
+- The project a pane belongs to is the directory Claude Code files the
+  session under (changed by `/cd`, not by a shell `cd`); a session started
+  inside another hands the pane back when it ends.
 
 ## [0.1.0] - 2026-09-29
 
