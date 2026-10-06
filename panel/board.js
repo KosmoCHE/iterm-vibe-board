@@ -141,16 +141,21 @@ function focus() {
   return state.board.focus;
 }
 
+// A project sees its own items and those filed under its sub-directories.
+function within(path, project) {
+  return path === project || path.startsWith(project.replace(/\/+$/, "") + "/");
+}
+
 function scopeItems() {
   const f = focus();
   const all = state.board.items;
   if (state.tab === "global") {
     const [kind, value] = state.filter.split(/:(.*)/s);
-    if (kind === "project") return all.filter((i) => i.project === value);
+    if (kind === "project") return all.filter((i) => within(i.project, value));
     if (kind === "who") return all.filter((i) => i.driver === value);
     return all;
   }
-  if (state.tab === "project") return f.project ? all.filter((i) => i.project === f.project) : [];
+  if (state.tab === "project") return f.project ? all.filter((i) => within(i.project, f.project)) : [];
   return f.session ? all.filter((i) => i.driver === f.session) : [];
 }
 
@@ -186,7 +191,7 @@ function jumpTo(item) {
   const f = focus();
   const visible =
     state.tab === "global" ? !state.filter || scopeItems().some((i) => i.id === item.id)
-    : state.tab === "project" ? item.project === f.project
+    : state.tab === "project" ? within(item.project, f.project)
     : item.driver === f.session;
   if (!visible) {
     state.tab = "global";

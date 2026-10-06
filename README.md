@@ -30,7 +30,8 @@ items are yours, agents are just the ones pushing them.
   - **Global** – everything, grouped by project. A select narrows it to one
     project or one session.
   - **Project** – the items of the project the focused pane's session was
-    started in (a Claude Code launch directory).
+    started in (a Claude Code launch directory), including those filed under
+    its sub-directories.
   - **Session** – the items the focused pane's session is pushing.
 
   Project and Session are bound to the pane you click into, like iTerm2's

@@ -46,7 +46,7 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 
 - **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibe Board）：
   - **Global**：所有的事，按项目分组；一个筛选框可以只看一个项目或一个 session。
-  - **Project**：聚焦 pane 里的会话所在项目的事（按 Claude Code 启动目录算）。
+  - **Project**：聚焦 pane 里的会话所在项目的事（按 Claude Code 启动目录算），子目录下登记的事也算在内。
   - **Session**：聚焦 pane 里的会话正在推的事。
 
   Project 和 Session 绑定你点进的 pane，和 iTerm2 的 Notes 一样。

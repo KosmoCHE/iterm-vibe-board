@@ -242,7 +242,7 @@ def cmd_list(args: argparse.Namespace) -> None:
     if not args.all:
         project = args.project or session_project or os.getcwd()
         project = os.path.abspath(project)
-        items = {k: v for k, v in items.items() if v["project"] == project}
+        items = {k: v for k, v in items.items() if store.within(v["project"], project)}
     if args.mine:
         items = {k: v for k, v in items.items() if v["driver"] == who}
     if args.json:

@@ -34,6 +34,10 @@ follows [Semantic Versioning](https://semver.org/).
 - An item is done only when its steps are: marking it done with an open
   step is refused, and so is adding a step under a finished item (set it
   back to `doing` first).
+- A project sees the items filed under its sub-directories too, so a session
+  started inside a sub-repository still shows up on the Project tab and in
+  `vibeboard list --project` of the directory above. Items are not given
+  sub-paths themselves; which sub-project a thing belongs to goes in its title.
 
 ## [0.1.0] - 2026-09-29
 

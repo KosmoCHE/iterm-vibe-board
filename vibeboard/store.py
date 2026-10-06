@@ -73,6 +73,15 @@ def project_key(path: str) -> str:
     return re.sub(r"[^A-Za-z0-9]", "-", path)
 
 
+def within(path: str, project: str) -> bool:
+    """Whether a path is the project itself or a directory under it.
+
+    A session started in a sub-directory files its items under that path; the
+    project above still wants to see them.
+    """
+    return path == project or path.startswith(project.rstrip("/") + "/")
+
+
 def project_dir(path: str) -> Path:
     return home() / "projects" / project_key(path)
 

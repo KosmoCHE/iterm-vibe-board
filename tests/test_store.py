@@ -91,6 +91,13 @@ def test_resolve_by_id_prefix_title_or_old_number():
     assert store.resolve("#7") == b["id"]
 
 
+def test_a_project_sees_items_filed_under_its_subdirectories():
+    assert store.within("/w/a", "/w")
+    assert store.within("/w", "/w")
+    assert not store.within("/wx", "/w")
+    assert not store.within("/w", "/w/a")
+
+
 def test_an_item_is_done_only_when_its_steps_are():
     item = store.create("item", "/tmp/a")
     step = store.create("step", "/tmp/a", parent=item["id"])
