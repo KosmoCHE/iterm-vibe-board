@@ -52,8 +52,9 @@ def test_validation():
 
 def test_done_sets_done_at_and_archive_moves_file(tmp_home):
     item = store.create("x", "/tmp/a")
-    assert store.update(item["id"], status="done")["done_at"]
     step = store.create("step", "/tmp/a", parent=item["id"])
+    store.update(step["id"], status="done")
+    assert store.update(item["id"], status="done")["done_at"]
     assert [i["id"] for i in store.archive(item["id"])] == [item["id"], step["id"]]
     assert not store.load_all()
     assert item["id"] in store.load_all(archived=True)
@@ -88,6 +89,19 @@ def test_resolve_by_id_prefix_title_or_old_number():
     old["num"] = 7  # written by 0.1
     store._write_json(store._item_path(old), old)
     assert store.resolve("#7") == b["id"]
+
+
+def test_an_item_is_done_only_when_its_steps_are():
+    item = store.create("item", "/tmp/a")
+    step = store.create("step", "/tmp/a", parent=item["id"])
+    with pytest.raises(ValueError):
+        store.update(item["id"], status="done")  # a step is still open
+    store.update(step["id"], status="done")
+    store.update(item["id"], status="done")
+    with pytest.raises(ValueError):
+        store.create("afterthought", "/tmp/a", parent=item["id"])  # reopen it first
+    store.update(item["id"], status="doing")
+    store.create("afterthought", "/tmp/a", parent=item["id"])
 
 
 def test_two_levels_only_and_migrate_flattens():

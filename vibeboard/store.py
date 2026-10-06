@@ -312,6 +312,15 @@ def _validated(fields: dict, items: dict, creating: bool, self_id: str | None = 
             raise ValueError(f"cannot set {key}")
         if key == "status" and value not in STATUSES:
             raise ValueError(f"status must be one of {', '.join(STATUSES)}")
+        if key == "status" and value == "done" and self_id:
+            # An item is done when its steps are: the board must not say otherwise.
+            open_steps = [
+                i for i in items.values() if i["parent"] == self_id and i["status"] != "done"
+            ]
+            if open_steps:
+                raise ValueError(
+                    f"{len(open_steps)} step(s) still open; finish or delete them first"
+                )
         if key == "origin" and value not in ORIGINS:
             raise ValueError(f"origin must be one of {', '.join(ORIGINS)}")
         if key == "driver" and value == ME:
@@ -329,6 +338,10 @@ def _validated(fields: dict, items: dict, creating: bool, self_id: str | None = 
             # Two levels only: an item and its steps. A step that needs a plan is an item.
             if items[value]["parent"]:
                 raise ValueError("a step cannot have steps; add this under the item itself")
+            if items[value]["status"] == "done":
+                raise ValueError(
+                    "that item is done; set its status back to doing before adding steps"
+                )
             if self_id and any(i["parent"] == self_id for i in items.values()):
                 raise ValueError("this item has steps of its own, so it stays an item")
         if key == "depends_on":

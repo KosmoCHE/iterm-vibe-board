@@ -41,7 +41,8 @@ each item's id first; ID is that id, any prefix of it that is unique, or a uniqu
 part of the title.
 
 Two levels only: an item and its steps. A step never has steps; if one needs a
-plan of its own, make it an item. Depend on the smallest set: waiting for all
+plan of its own, make it an item. An item is done when all its steps are;
+to add steps to a finished item, set it back to `doing` first. Depend on the smallest set: waiting for all
 of an item's steps means depending on the item.
 
 ## Statuses
