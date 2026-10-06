@@ -12,6 +12,22 @@ follows [Semantic Versioning](https://semver.org/).
   of the iTerm API script, and keep its URL stable across crashes.
 - Show an explicit stale-data banner while disconnected, bound request timeouts,
   disable offline edits, and refresh the board on reconnection.
+- Clicking a Graph task's status/count toggles its details. The whole control
+  shares List's single-click toggle and double-click edit handling.
+- Graph shares List's scoped hierarchy. Session and driver filters keep only
+  matching tasks and steps, including in group counts and details. Links to
+  parents outside the current scope switch to Global.
+
+### Added
+
+- Graph view alongside List, with collapsible task backgrounds, subtask
+  dependency layers, and independent flow entries. Nodes resize per level
+  to the available sidebar width, with compact labels in dense rows. Full
+  titles and completion controls are available in the inspector. Completed
+  tasks and steps start folded; prerequisite links reveal their targets.
+  Includes a bundled Lucide icon subset and its license.
+- Graph task order, step details and order within dependency layers follow
+  List's actionable-first rules. Completed-step folding is shared with List.
 
 ### Changed
 

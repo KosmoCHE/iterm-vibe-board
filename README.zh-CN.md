@@ -45,11 +45,12 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 ## 做什么
 
 - **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibe Board）：
-  - **Global**：所有的事，按项目分组；一个筛选框可以只看一个项目或一个 session。
+  - **Global**：所有的事，列表按项目分组；一个筛选框可以只看一个项目或一个 session。
   - **Project**：聚焦 pane 里的会话所在项目的事（按 Claude Code 启动目录算），子目录下登记的事也算在内。
   - **Session**：聚焦 pane 里的会话正在推的事。
 
   Project 和 Session 绑定你点进的 pane，和 iTerm2 的 Notes 一样。
+- **列表与图视图切换**：Graph 用可折叠的背景框表示 task，内部直接显示按依赖分层的 subtask。每层根据实际侧栏宽度和节点数量调整大小，密集时显示短标题，悬停或选中可看全文。独立任务保留各自入口，没有子步骤的任务显示为单个节点。单击查看详情和勾选完成，双击编辑，详情中的依赖可点击跳转。已完成任务和步骤默认折叠，视图及 task 的展开状态会记住。图标使用随项目提供的 Lucide 子集，无需在线下载。
 - **每件事记**：状态（`todo`、`doing`、`waiting`、`later`、`done`）、推进者（哪个 session 在推，也可以没有）、来源、谁建的、子步骤、依赖（可跨项目）、下一步、在等谁、日期。
 - **来源说的是这件事为什么存在**，事情堆起来时原计划仍然看得见：
   - `plan`：动手前写下的；
@@ -80,7 +81,7 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 
 ## 第一版不做
 
-图或甘特视图、Homebrew、其他 agent 的适配。数据模型已经给这些预留了字段。
+甘特视图、Homebrew、其他 agent 的适配。
 
 ## 目录
 

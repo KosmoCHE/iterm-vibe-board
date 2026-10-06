@@ -27,7 +27,7 @@ items are yours, agents are just the ones pushing them.
 ## What it does
 
 - **One panel, three tabs** in the iTerm2 toolbelt (View › Toolbelt › Vibe Board):
-  - **Global** – everything, grouped by project. A select narrows it to one
+  - **Global** – everything, grouped by project in List. A select narrows it to one
     project or one session.
   - **Project** – the items of the project the focused pane's session was
     started in (a Claude Code launch directory), including those filed under
@@ -36,6 +36,14 @@ items are yours, agents are just the ones pushing them.
 
   Project and Session are bound to the pane you click into, like iTerm2's
   Notes.
+- **List and Graph views**: Graph shows tasks as collapsible backgrounds with
+  sub-steps arranged by dependency. Each level sizes its nodes to the current
+  sidebar width; dense levels use short titles, with full text on hover or in
+  the inspector. Independent tasks keep separate entries, and tasks without
+  steps appear as single nodes. Click a node for details and completion,
+  double-click to edit, or follow its prerequisite links. Completed tasks and
+  steps start folded. View choice and task folds are remembered. The panel
+  uses a small bundled set of Lucide icons, with no runtime download.
 - **Every item records** its status (`todo`, `doing`, `waiting`, `later`,
   `done`), its driver (which session pushes it, if any), its origin, who
   created it, sub-steps, dependencies (across projects too), the next step,
@@ -88,8 +96,7 @@ Data lives in `~/.iterm-vibe-board/`: one JSON file per item under
 
 ## Not in the first version
 
-A graph or Gantt view, Homebrew formula, adapters for other agents. The data model already reserves the fields these
-need.
+A Gantt view, Homebrew formula, adapters for other agents.
 
 ## Layout
 

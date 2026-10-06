@@ -19,8 +19,14 @@
     </div>
     <div id="scope" class="scope"></div>
   </header>
+  <nav class="views" aria-label="Board view">
+    <button data-view="list" aria-pressed="true">List</button>
+    <button data-view="graph" aria-pressed="false">Graph</button>
+    <span id="graph-hint" hidden>Fit sidebar</span>
+  </nav>
   <main id="main">
     <div id="tree"></div>
+    <div id="graph" hidden></div>
   </main>
   <section id="inspector" class="inspector" hidden></section>
   <form id="add" class="add" autocomplete="off" hidden>
@@ -33,6 +39,8 @@
     <span id="status"></span>
     <button id="undo" type="button" hidden>Undo</button>
   </footer>
+  <script src="/static/icons.js"></script>
+  <script src="/static/graph.js"></script>
   <script src="/static/board.js"></script>
 </body>
 </html>

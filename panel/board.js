@@ -8,6 +8,9 @@ const state = {
   board: null,
   version: null,
   tab: localStorage.getItem("vibeboard.tab") || "global",
+  view: localStorage.getItem("vibeboard.view") === "graph" ? "graph" : "list",
+  graphDone: {},
+  graphOpen: JSON.parse(localStorage.getItem("vibeboard.graphOpen") || "{}"),
   fold: JSON.parse(localStorage.getItem("vibeboard.fold") || "{}"),
   byId: {},
   children: {},
@@ -159,6 +162,17 @@ function scopeItems() {
   return f.session ? all.filter((i) => i.driver === f.session) : [];
 }
 
+function scopedChildren(items) {
+  const inScope = new Set(items.map((i) => i.id));
+  const kids = {};
+  for (const it of items) {
+    const key = it.parent && inScope.has(it.parent) ? it.parent : "root";
+    (kids[key] = kids[key] || []).push(it);
+  }
+  for (const k in kids) kids[k].sort((x, y) => x.created_at.localeCompare(y.created_at));
+  return kids;
+}
+
 function paneOf(who) {
   const b = state.board;
   if (b.panes[who]) return b.panes[who];
@@ -188,21 +202,18 @@ function shortId(id) {
 // Show an item wherever it is: switch to Global if the current tab cannot see it,
 // unfold its parent, open the done block it may sit in, then select it.
 function jumpTo(item) {
-  const f = focus();
-  const visible =
-    state.tab === "global" ? !state.filter || scopeItems().some((i) => i.id === item.id)
-    : state.tab === "project" ? within(item.project, f.project)
-    : item.driver === f.session;
-  if (!visible) {
+  if (!scopeItems().some((i) => i.id === item.id)) {
     state.tab = "global";
     state.filter = "";
     localStorage.setItem("vibeboard.tab", state.tab);
   }
-  if (item.parent) state.fold[state.tab + ":" + item.parent] = true;
+  const parent = scopeItems().find((i) => i.id === item.parent);
+  if (parent) state.fold[state.tab + ":" + parent.id] = true;
   if (item.status === "done") {
-    const key = item.parent || (state.tab === "global" ? "root:" + item.project : "root");
+    const key = parent ? parent.id : state.tab === "global" ? "root:" + item.project : "root";
     state.showDone[state.tab + ":" + key] = true;
   }
+  if (state.view === "graph") revealGraphItem(item);
   render();
   select(item.id);
 }
@@ -240,7 +251,7 @@ function isOpen(id) {
 }
 
 function typing() {
-  return $("#inspector").contains(document.activeElement);
+  return $("#inspector").contains(document.activeElement) && document.activeElement.matches("input, select, textarea");
 }
 
 // --- rendering ------------------------------------------------------------------
@@ -262,16 +273,25 @@ function render() {
 
   renderTabs();
   renderScope();
+  document.body.classList.toggle("graph-view", state.view === "graph");
+  document.querySelectorAll(".views button").forEach((btn) => {
+    btn.classList.toggle("on", btn.dataset.view === state.view);
+    btn.setAttribute("aria-pressed", btn.dataset.view === state.view);
+  });
+  $("#tree").hidden = state.view === "graph";
+  $("#graph").hidden = $("#graph-hint").hidden = state.view !== "graph";
 
   const items = scopeItems();
-  const inScope = new Set(items.map((i) => i.id));
-  const kids = {};
-  for (const it of items) {
-    const key = it.parent && inScope.has(it.parent) ? it.parent : "root";
-    (kids[key] = kids[key] || []).push(it);
-  }
-  for (const k in kids) kids[k].sort((x, y) => x.created_at.localeCompare(y.created_at));
+  if (state.view === "graph") renderGraph(items);
+  else renderTree(items);
 
+  renderAdd();
+  renderInspector();
+  renderStatus();
+}
+
+function renderTree(items) {
+  const kids = scopedChildren(items);
   const tree = $("#tree");
   tree.replaceChildren();
   const roots = kids.root || [];
@@ -286,10 +306,6 @@ function render() {
       tree.append(...list(byProject[project], "root:" + project, 0, kids));
     }
   } else tree.append(...list(roots, "root", 0, kids));
-
-  renderAdd();
-  renderInspector();
-  renderStatus();
 }
 
 function emptyText() {
@@ -353,15 +369,22 @@ function rows(item, kids, depth) {
 
 // One level of the tree: the done items first, folded into a tinted block, then the open ones.
 function list(items, key, depth, kids) {
-  const done = items.filter((i) => i.status === "done");
+  const { done, active } = levelItems(items);
   const out = [];
   if (done.length) {
     const k = state.tab + ":" + key;
     out.push(doneFold(done.length, k, depth));
     if (state.showDone[k]) done.forEach((i) => out.push(...rows(i, kids, depth)));
   }
-  ordered(items.filter((i) => i.status !== "done")).forEach((i) => out.push(...rows(i, kids, depth)));
+  active.forEach((i) => out.push(...rows(i, kids, depth)));
   return out;
+}
+
+function levelItems(items) {
+  return {
+    done: items.filter((i) => i.status === "done").sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    active: ordered(items.filter((i) => i.status !== "done")),
+  };
 }
 
 // Is anything this item depends on still open?
@@ -375,9 +398,16 @@ const RANK = { doing: 0, todo: 1, waiting: 2, later: 4 };
 function ordered(items) {
   const rank = (i) => (blocked(i) && i.status !== "later" ? 3 : RANK[i.status]);
   const out = items.slice().sort((x, y) => rank(x) - rank(y) || x.created_at.localeCompare(y.created_at));
+  const seen = new Set();
   for (let n = 0; n < out.length; n++) {
     const last = Math.max(-1, ...out[n].depends_on.map((d) => out.findIndex((i) => i.id === d && i.status !== "done")));
-    if (last > n) out.splice(last + 1, 0, ...out.splice(n--, 1)); // move it just below its last blocker
+    if (last > n) {
+      // Graph can expose dependency loops. Keep the list responsive on that data too.
+      const key = out.map((i) => i.id).join(",");
+      if (seen.has(key)) break;
+      seen.add(key);
+      out.splice(last + 1, 0, ...out.splice(n--, 1)); // move it just below its last blocker
+    }
   }
   return out;
 }
@@ -461,25 +491,31 @@ function row(item, depth, nChildren) {
     content.append(detail);
   }
   line.append(caret, box, content);
+  itemEvents(line, item);
+  r.append(line);
+  return r;
+}
+
+function itemEvents(line, item) {
   // Click shows or hides the details, double-click edits. The click waits a beat so a
   // double-click does not open and close the details on its way in.
   let pending = null;
   line.onclick = (e) => {
-    if (e.target.closest("button, input, select")) return;
+    const control = e.target.closest("button, input, select");
+    if (control && control !== line) return;
     clearTimeout(pending);
     pending = setTimeout(() => select(state.selected === item.id ? null : item.id), 220);
   };
   line.ondblclick = (e) => {
-    if (e.target.closest("button, input, select")) return;
+    const control = e.target.closest("button, input, select");
+    if (control && control !== line) return;
     clearTimeout(pending);
     select(item.id, true);
   };
-  r.oncontextmenu = (e) => {
+  line.oncontextmenu = (e) => {
     e.preventDefault();
     openMenu(item, e.clientX, e.clientY);
   };
-  r.append(line);
-  return r;
 }
 
 // --- context menu: the few actions a right-click on a row offers ---
@@ -513,8 +549,14 @@ function select(id, edit = false) {
   state.selected = id;
   state.editing = edit;
   document.querySelectorAll(".row").forEach((x) => x.classList.toggle("selected", x.dataset.id === id));
+  if (id && state.view === "graph" && !document.querySelector(`#graph [data-id="${id}"]`)) {
+    revealGraphItem(state.byId[id]);
+    renderGraph(scopeItems());
+  }
+  document.querySelectorAll(".graph-node").forEach((x) => x.classList.toggle("selected", x.dataset.id === id));
+  document.querySelectorAll(".graph-task").forEach((x) => x.classList.toggle("selected-task", x.dataset.task === id));
   renderInspector();
-  const row = id && document.querySelector(`.row[data-id="${id}"]`);
+  const row = id && (state.view === "graph" ? document.querySelector(`#graph [data-id="${id}"]`) : document.querySelector(`.row[data-id="${id}"]`));
   if (row) row.scrollIntoView({ block: "nearest" }); // the inspector just took space below
 }
 
@@ -545,7 +587,7 @@ function renderInspector() {
     box.replaceChildren();
     return;
   }
-  if (box.contains(document.activeElement)) return;
+  if (typing()) return;
   box.replaceChildren();
 
   const b = state.board;
@@ -559,6 +601,11 @@ function renderInspector() {
   head.append(el("b", "", item.title), meta, toggle, close);
   head.title = "id " + item.id;
   box.append(head);
+  if (state.view === "graph" && item.parent && state.byId[item.parent]) {
+    const parent = el("button", "graph-parent", "‹ " + state.byId[item.parent].title);
+    parent.onclick = () => jumpTo(state.byId[item.parent]);
+    box.append(parent);
+  }
 
   if (state.editing) {
     box.append(field("Title", text(item.title, (v) => v && patch(item.id, { title: v }))));
@@ -570,14 +617,19 @@ function renderInspector() {
     box.append(field("Due", date(item.due, (v) => patch(item.id, { due: v || null }))));
   } else {
     if (item.description) box.append(el("div", "desc", item.description));
-    box.append(field("Status", el("span", "status " + item.status, b.labels[item.status])));
-    box.append(field("Created", el("span", "", when(item.created_at))));
-    if (item.started_at) box.append(field("Started", el("span", "", when(item.started_at))));
-    if (item.done_at) box.append(field("Done", el("span", "", when(item.done_at))));
-    box.append(field("Driver", el("span", item.driver ? "driver" : "", item.driver ? "@" + whoName(item.driver) : "no session")));
+    const status = el("span", "status " + item.status, b.labels[item.status]);
+    if (state.view === "graph") status.prepend(graphCompletion(item));
+    box.append(field("Status", status));
+    if (state.view !== "graph") {
+      box.append(field("Created", el("span", "", when(item.created_at))));
+      if (item.started_at) box.append(field("Started", el("span", "", when(item.started_at))));
+      if (item.done_at) box.append(field("Done", el("span", "", when(item.done_at))));
+    }
+    box.append(field("Driver", state.view === "graph" && item.driver ? driverChip(item) : el("span", item.driver ? "driver" : "", item.driver ? "@" + whoName(item.driver) : "no session")));
     if (item.next) box.append(field("Next", el("span", "next", item.next)));
     if (item.waiting_for) box.append(field("Waiting for", el("span", "waiting", item.waiting_for)));
     if (item.due) box.append(field("Due", el("span", "", item.due)));
+    if (state.view === "graph") renderGraphSteps(box, item);
   }
   box.hidden = false;
 }
@@ -693,11 +745,25 @@ function renderStatus() {
 
 // --- wiring ---------------------------------------------------------------------
 
+document.querySelector('[data-view="list"]').prepend(icon("List"));
+document.querySelector('[data-view="graph"]').prepend(icon("Workflow"));
+$("#plus").replaceChildren(icon("Plus"));
+
 document.querySelectorAll(".tabs button").forEach((btn) => {
   btn.onclick = () => {
     state.tab = btn.dataset.tab;
     localStorage.setItem("vibeboard.tab", state.tab);
     state.selected = null;
+    if (state.board) render();
+  };
+});
+
+document.querySelectorAll(".views button").forEach((btn) => {
+  btn.onclick = () => {
+    state.view = btn.dataset.view;
+    localStorage.setItem("vibeboard.view", state.view);
+    if (state.view === "graph" && state.selected) revealGraphItem(state.byId[state.selected]);
+    closeMenu();
     if (state.board) render();
   };
 });
