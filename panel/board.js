@@ -397,7 +397,13 @@ function doneFold(n, key, depth) {
 
 function row(item, depth, nChildren) {
   const b = state.board;
-  const r = el("div", "row" + (item.status === "done" ? " done" : "") + (blocked(item) ? " blocked" : "") + (item.id === state.selected ? " selected" : ""));
+  const r = el(
+    "div",
+    "row" +
+      (item.status === "done" ? " done" : item.status === "doing" ? " doing" : "") +
+      (blocked(item) ? " blocked" : "") +
+      (item.id === state.selected ? " selected" : ""),
+  );
   r.dataset.id = item.id;
   r.style.setProperty("--depth", depth);
   const line = el("div", "line");

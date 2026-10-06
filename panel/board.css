@@ -13,6 +13,8 @@
   --danger: #ff453a;
   --done: color-mix(in srgb, #34c759 6%, transparent); /* the tint of the done block */
   --done-head: color-mix(in srgb, #34c759 14%, transparent); /* its Show/Hide line, a shade deeper */
+  --doing: color-mix(in srgb, var(--warn) 10%, transparent); /* rows in progress, same hue as their badge */
+  --doing-hover: color-mix(in srgb, var(--warn) 16%, transparent);
 }
 
 * { box-sizing: border-box; }
@@ -47,6 +49,8 @@ h2 .path { font-weight: 400; }
 
 .row { padding: 0 8px 0 calc(8px + var(--depth, 0) * 14px); }
 .row:hover { background: var(--hover); }
+.row.doing { background: var(--doing); }
+.row.doing:hover { background: var(--doing-hover); }
 .row.selected { background: var(--selected); }
 .row .line { display: grid; grid-template-columns: 16px min-content 1fr; column-gap: 5px; align-items: baseline; padding: 3px 0; }
 .row.done { background: var(--done); }
