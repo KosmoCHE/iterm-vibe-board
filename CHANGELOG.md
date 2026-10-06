@@ -24,6 +24,9 @@ follows [Semantic Versioning](https://semver.org/).
 - The project a pane belongs to is the directory Claude Code files the
   session under (changed by `/cd`, not by a shell `cd`); a session started
   inside another hands the pane back when it ends.
+- An item is done only when its steps are: marking it done with an open
+  step is refused, and so is adding a step under a finished item (set it
+  back to `doing` first).
 
 ## [0.1.0] - 2026-09-29
 
