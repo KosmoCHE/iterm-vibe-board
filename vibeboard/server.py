@@ -6,6 +6,7 @@ which the panel reads from its own URL.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import secrets
@@ -65,6 +66,11 @@ class BoardServer(ThreadingHTTPServer):
         self._names = (names, time.time())
         return names
 
+    def version(self) -> str:
+        # Renaming a live session does not touch the task store.
+        names = json.dumps(self.pane_names(), sort_keys=True).encode()
+        return f"{store.version()}:{hashlib.sha256(names).hexdigest()}"
+
     def board(self) -> dict:
         names = self.pane_names()
         panes = {}
@@ -83,7 +89,7 @@ class BoardServer(ThreadingHTTPServer):
             except ValueError:
                 pass
         return {
-            "version": store.version(),
+            "version": self.version(),
             "focus": focus,
             "projects": store.projects(),
             "panes": panes,
@@ -148,7 +154,11 @@ class Handler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.UNAUTHORIZED, "bad token")
         elif url.path == "/api/version":
             self._json(
-                {"version": store.version(), "assets": assets_version(), "focus": self.server.focus}
+                {
+                    "version": self.server.version(),
+                    "assets": assets_version(),
+                    "focus": self.server.focus,
+                }
             )
         elif url.path == "/api/board":
             self._json(self.server.board())

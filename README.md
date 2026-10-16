@@ -36,10 +36,12 @@ items are yours, agents are just the ones pushing them.
 
   Project and Session are bound to the pane you click into, like iTerm2's
   Notes.
-- **List and Graph views**: Graph shows tasks as collapsible backgrounds with
-  sub-steps arranged by dependency. Each level sizes its nodes to the current
+- **List and Graph views**: Graph lays out independent subgraphs side by side,
+  with task backgrounds containing sub-steps arranged by dependency. Task and
+  cross-task step links keep related groups in the same flow. Branching subgraphs
+  receive more width; collapsed tasks remain compact nodes. Each level fits the current
   sidebar width; dense levels use short titles, with full text on hover or in
-  the inspector. Independent tasks keep separate entries, and tasks without
+  the inspector. Independent flows wrap to fit narrower panels, and tasks without
   steps appear as single nodes. Click a node for details and completion,
   double-click to edit, or follow its prerequisite links. Completed tasks and
   steps start folded. View choice and task folds are remembered. The panel

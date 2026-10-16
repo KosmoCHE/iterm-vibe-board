@@ -15,7 +15,7 @@
         <button data-tab="project">Project</button>
         <button data-tab="session">Session</button>
       </nav>
-      <button id="plus" type="button" title="Add an item">+</button>
+      <button id="plus" type="button" data-tooltip="Add an item" aria-label="Add an item">+</button>
     </div>
     <div id="scope" class="scope"></div>
   </header>
@@ -32,7 +32,7 @@
   <form id="add" class="add" autocomplete="off" hidden>
     <div id="add-under" class="under" hidden></div>
     <input id="add-title" placeholder="New item, Enter to add, Esc to close">
-    <select id="add-project" title="project"></select>
+    <select id="add-project" data-tooltip="project" aria-label="project"></select>
   </form>
   <div id="menu" class="menu" hidden></div>
   <footer id="footer" hidden>
@@ -40,6 +40,7 @@
     <button id="undo" type="button" hidden>Undo</button>
   </footer>
   <script src="/static/icons.js"></script>
+  <script src="/static/tooltip.js"></script>
   <script src="/static/graph.js"></script>
   <script src="/static/board.js"></script>
 </body>

@@ -4,17 +4,29 @@
 #   ~/.iterm-vibe-board/bin/vibeboard              launcher for the CLI (hooks and agents call it)
 #   ~/.claude/skills/vibeboard                  -> adapters/claude-code/skills/vibeboard
 #   ~/.claude/settings.json                        SessionStart and SessionEnd hooks added
-#   ~/Library/Application Support/iTerm2/Scripts/AutoLaunch/vibeboard_panel.py -> iterm/vibeboard_panel.py
+#   iTerm2's active AppSupport/Scripts/AutoLaunch/vibeboard_panel.py -> iterm/vibeboard_panel.py
 #
 # Rerun after `git pull`. `install.sh --uninstall` removes all of it; the data stays.
 set -eu
+
+iterm_support() {
+  for candidate in "$1/.config/iterm2/AppSupport" "$1/.iterm2/AppSupport"; do
+    if [ -d "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  done
+  printf '%s\n' "$1/Library/Application Support/iTerm2"
+}
 
 ROOT=$(cd "$(dirname "$0")" && pwd -P)
 DATA=${VIBEBOARD_HOME:-$HOME/.iterm-vibe-board}
 BIN=$DATA/bin/vibeboard
 SKILL=$HOME/.claude/skills/vibeboard
 SETTINGS=$HOME/.claude/settings.json
-AUTOLAUNCH="$HOME/Library/Application Support/iTerm2/Scripts/AutoLaunch"
+LEGACY_SUPPORT="$HOME/Library/Application Support/iTerm2"
+SUPPORT=$(iterm_support "$HOME")
+AUTOLAUNCH="$SUPPORT/Scripts/AutoLaunch"
 PANEL=$AUTOLAUNCH/vibeboard_panel.py
 PYTHON=$(command -v python3 || true)
 
@@ -50,9 +62,16 @@ EOF
 }
 
 runtime_python() { # iTerm2's own Python runtime, which runs AutoLaunch scripts
-  # 3.7 installs it with uv under ~/.config/iterm2; older versions under Application Support.
-  ls -d "$HOME/.config/iterm2/AppSupport/uv/venvs/"*/bin/python3 \
-        "$HOME/Library/Application Support/iTerm2/iterm2env/versions/"*/bin/python3 2>/dev/null | tail -1
+  ls -d "$SUPPORT/uv/venvs/"*/bin/python3 \
+        "$SUPPORT/iterm2env/versions/"*/bin/python3 2>/dev/null | tail -1
+}
+
+remove_legacy_panel() { # remove only our stale link, never the active path through an alias
+  legacy_panel="$LEGACY_SUPPORT/Scripts/AutoLaunch/vibeboard_panel.py"
+  if [ -L "$legacy_panel" ] && [ "$(readlink "$legacy_panel")" = "$ROOT/iterm/vibeboard_panel.py" ] &&
+     [ "$(cd "$LEGACY_SUPPORT" && pwd -P)" != "$(cd "$SUPPORT" && pwd -P)" ]; then
+    rm "$legacy_panel"
+  fi
 }
 
 forget_tool() { # iTerm2 remembers dynamic tools in its preferences; drop ours
@@ -70,6 +89,7 @@ uninstall() {
   PYTHONPATH="$ROOT" "$PYTHON" -m vibeboard.service --uninstall
   pkill -f "vibeboard serve" 2>/dev/null || true
   rm -f "$BIN" "$SKILL" "$PANEL"
+  remove_legacy_panel
   [ -f "$SETTINGS" ] && hooks uninstall
   forget_tool
   echo "Removed the launcher, the skill, the hooks and the AutoLaunch script."
@@ -89,6 +109,7 @@ EOF
   ln -sfn "$ROOT/adapters/claude-code/skills/vibeboard" "$SKILL"
   hooks install
   ln -sfn "$ROOT/iterm/vibeboard_panel.py" "$PANEL"
+  remove_legacy_panel
   echo "Installed:"
   echo "  $BIN"
   echo "  $SKILL"

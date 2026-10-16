@@ -12,6 +12,15 @@ follows [Semantic Versioning](https://semver.org/).
   of the iTerm API script, and keep its URL stable across crashes.
 - Show an explicit stale-data banner while disconnected, bound request timeouts,
   disable offline edits, and refresh the board on reconnection.
+- Renaming an iTerm session refreshes its name in the panel without a task edit
+  or pane switch. Version polling includes live session names and retains the
+  three-second lookup cache.
+- List no longer opens custom hover tooltips. Graph task, subtask and dependency
+  hints include each item's description when it is present.
+- Install the panel in iTerm2's active AppSupport AutoLaunch directory, including
+  modern `.config/iterm2` layouts, so it starts again after iTerm2 restarts.
+  Reinstalling removes the plugin's stale link from a separate legacy directory.
+- Graph task and step titles preserve their original prefixes and version information.
 - Clicking a Graph task's status/count toggles its details. The whole control
   shares List's single-click toggle and double-click edit handling.
 - Graph shares List's scoped hierarchy. Session and driver filters keep only
@@ -26,11 +35,22 @@ follows [Semantic Versioning](https://semver.org/).
   titles and completion controls are available in the inspector. Completed
   tasks and steps start folded; prerequisite links reveal their targets.
   Includes a bundled Lucide icon subset and its license.
-- Graph task order, step details and order within dependency layers follow
+- Graph step details and order within dependency layers follow
   List's actionable-first rules. Completed-step folding is shared with List.
 
 ### Changed
 
+- Graph arranges independent task subgraphs side by side, with more width for
+  branching flows. Task and cross-task step dependencies determine which groups
+  share a flow and their layers; arrows still represent only explicit prerequisites.
+  Collapsed tasks appear as compact nodes, and narrow panels wrap to fewer columns.
+- Graph tooltips appear after 200 ms and switch immediately
+  when another hint is hovered within 500 ms. Click, scroll and Escape dismiss them.
+  Hints cover collapsed task blocks, expanded task headers and individual steps;
+  nested controls retain their own hints.
+- List uses Graph's task surfaces, Lucide status icons and state colours,
+  with compact step rows and separate title and metadata lines. Completion
+  controls remain native checkboxes, and completed-item folds support keyboard use.
 - Items have no numbers any more. They are named by title, or by any unique
   prefix of their id (`vibeboard list` prints it first); the `#12` /
   `name#12` syntax and the per-project counter and lock are gone. Numbers

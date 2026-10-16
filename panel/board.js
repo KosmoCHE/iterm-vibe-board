@@ -242,7 +242,6 @@ function progress(id) {
   return out;
 }
 
-const PROGRESS_MARK = { plan: "●", issue: "⚡", added: "+" };
 const PROGRESS_WORDS = { plan: "planned", issue: "issues", added: "added" };
 
 function isOpen(id) {
@@ -301,7 +300,9 @@ function renderTree(items) {
     roots.forEach((i) => (byProject[i.project] = byProject[i.project] || []).push(i));
     for (const project of Object.keys(byProject).sort()) {
       const h = el("h2", "project", projectName(project));
-      h.append(" ", el("span", "path", projectPath(project)));
+      h.prepend(icon("Folder"));
+      h.append(el("span", "path", projectPath(project)));
+      h.dataset.tooltip = projectPath(project);
       tree.append(h);
       tree.append(...list(byProject[project], "root:" + project, 0, kids));
     }
@@ -362,8 +363,14 @@ function filterSelect() {
 
 function rows(item, kids, depth) {
   const children = kids[item.id] || [];
-  const out = [row(item, depth, children.length)];
-  if (children.length && isOpen(item.id)) out.push(...list(children, item.id, depth + 1, kids));
+  const open = children.length && isOpen(item.id);
+  const out = [row(item, children.length)];
+  if (open) out.push(...list(children, item.id, depth + 1, kids));
+  if (depth === 0) {
+    const group = el("section", "list-task");
+    group.append(...out);
+    return [group];
+  }
   return out;
 }
 
@@ -373,7 +380,7 @@ function list(items, key, depth, kids) {
   const out = [];
   if (done.length) {
     const k = state.tab + ":" + key;
-    out.push(doneFold(done.length, k, depth));
+    out.push(doneFold(done.length, k));
     if (state.showDone[k]) done.forEach((i) => out.push(...rows(i, kids, depth)));
   }
   active.forEach((i) => out.push(...rows(i, kids, depth)));
@@ -390,6 +397,20 @@ function levelItems(items) {
 // Is anything this item depends on still open?
 function blocked(item) {
   return item.depends_on.some((d) => state.byId[d] && state.byId[d].status !== "done");
+}
+
+function statusIcon(item) {
+  const status = item.status === "todo" && blocked(item) ? "waiting" : item.status;
+  const mark = icon({ todo: "Circle", doing: "CircleDot", waiting: "Clock3", later: "CircleDashed", done: "Check" }[status]);
+  mark.classList.add("state-icon", status);
+  return mark;
+}
+
+function itemTooltip(item) {
+  const lines = [item.title];
+  if (item.description) lines.push(item.description);
+  lines.push(state.board.labels[item.status] + (item.waiting_for ? ": " + item.waiting_for : ""));
+  return lines.join("\n");
 }
 
 // One level reads top to bottom as now → next → waiting → blocked → later, oldest first
@@ -412,11 +433,11 @@ function ordered(items) {
   return out;
 }
 
-function doneFold(n, key, depth) {
+function doneFold(n, key) {
   const r = el("div", "row fold");
-  r.style.setProperty("--depth", depth);
-  const line = el("div", "line");
-  line.append(el("span"), el("span", "", `${state.showDone[key] ? "Hide" : "Show"} ${n} done`));
+  const line = el("button", "line");
+  line.setAttribute("aria-expanded", Boolean(state.showDone[key]));
+  line.append(icon(state.showDone[key] ? "ChevronDown" : "ChevronRight"), el("span", "", `${state.showDone[key] ? "Hide" : "Show"} ${n} done`));
   line.onclick = () => {
     state.showDone[key] = !state.showDone[key];
     render();
@@ -425,21 +446,24 @@ function doneFold(n, key, depth) {
   return r;
 }
 
-function row(item, depth, nChildren) {
+function row(item, nChildren) {
   const b = state.board;
   const r = el(
     "div",
     "row" +
-      (item.status === "done" ? " done" : item.status === "doing" ? " doing" : "") +
+      " " + item.status +
       (blocked(item) ? " blocked" : "") +
       (item.id === state.selected ? " selected" : ""),
   );
   r.dataset.id = item.id;
-  r.style.setProperty("--depth", depth);
+  r.classList.toggle("leaf", !nChildren);
   const line = el("div", "line");
 
-  const caret = el("button", "caret" + (nChildren && isOpen(item.id) ? " open" : ""));
+  const caret = el("button", "caret");
   caret.disabled = !nChildren;
+  caret.append(icon(nChildren && isOpen(item.id) ? "ChevronDown" : "ChevronRight"));
+  caret.setAttribute("aria-label", (isOpen(item.id) ? "Collapse " : "Expand ") + item.title);
+  if (nChildren) caret.setAttribute("aria-expanded", isOpen(item.id));
   caret.onclick = () => {
     state.fold[state.tab + ":" + item.id] = !isOpen(item.id);
     localStorage.setItem("vibeboard.fold", JSON.stringify(state.fold));
@@ -449,40 +473,47 @@ function row(item, depth, nChildren) {
   const box = el("input", "box");
   box.type = "checkbox";
   box.checked = item.status === "done";
+  box.setAttribute("aria-label", "Mark “" + item.title + "” " + (box.checked ? "to do" : "done"));
   box.onchange = () => patch(item.id, { status: box.checked ? "done" : "todo" });
+  const check = el("span", "list-check");
+  check.dataset.tooltip = b.labels[item.status];
+  check.append(box, statusIcon(item));
 
   const title = el("span", "title", item.title);
+  if (!item.parent) title.prepend(icon("Folder"));
 
   const badges = el("span", "badges");
-  if (item.origin === "issue") badges.append(el("span", "badge issue", "⚡"));
-  if (item.origin === "added") badges.append(el("span", "badge added", "+"));
+  if (item.origin === "issue") badges.append(el("span", "badge issue", "issue"));
+  if (item.origin === "added") badges.append(el("span", "badge added", "added"));
   if (item.status !== "todo" && item.status !== "done") {
-    const label = b.labels[item.status] + (item.status === "waiting" && item.waiting_for ? ": " + item.waiting_for : "");
+    const label = b.labels[item.status] + (state.tab !== "session" && item.status === "waiting" && item.waiting_for ? ": " + item.waiting_for : "");
     badges.append(el("span", "badge status " + item.status, label));
   }
   const p = progress(item.id);
   const parts = Object.entries(p).filter(([, [, total]]) => total);
   if (parts.length) {
-    const progressBadge = el("span", "badge progress", parts.map(([o, [d, t]]) => `${PROGRESS_MARK[o]}${d}/${t}`).join(" · "));
-    progressBadge.title = parts.map(([o, [d, t]]) => `${PROGRESS_WORDS[o]} ${d} of ${t} ${o === "issue" ? "resolved" : "done"}`).join(" · ");
+    const progressBadge = el("span", "badge progress", parts.map(([o, [d, t]]) => `${d}/${t} ${PROGRESS_WORDS[o]}`).join(" · "));
+    progressBadge.prepend(icon("List"));
+    progressBadge.dataset.tooltip = parts.map(([o, [d, t]]) => `${PROGRESS_WORDS[o]} ${d} of ${t} ${o === "issue" ? "resolved" : "done"}`).join(" · ");
     badges.append(progressBadge);
   }
   for (const dep of item.depends_on) {
     const d = state.byId[dep];
     if (!d || d.status === "done") continue;
-    const badge = el("button", "badge dep", "⏳ " + (d.project !== item.project ? projectName(d.project) + ": " : "") + d.title);
-    badge.title = "waits for: " + d.title + " — click to go there";
+    const badge = el("button", "badge dep");
+    badge.append(icon("ArrowUpRight"), el("span", "", (d.project !== item.project ? projectName(d.project) + ": " : "") + d.title));
+    badge.dataset.tooltip = "waits for: " + d.title + " — click to go there";
     badge.onclick = () => jumpTo(d);
     badges.append(badge);
   }
   if (item.driver) badges.append(driverChip(item));
   if (item.created_by !== b.me && item.created_by !== item.driver) {
     const from = el("span", "badge from", "from " + whoName(item.created_by));
-    from.title = "created by " + whoName(item.created_by);
+    from.dataset.tooltip = "created by " + whoName(item.created_by);
     badges.append(from);
   }
 
-  const content = el("div", "content"); // title and badges share a column, so wrapped badges stay aligned
+  const content = el("div", "content");
   content.append(title, badges);
   if (state.tab === "session" && (item.next || item.waiting_for)) {
     const detail = el("div", "detail");
@@ -490,7 +521,7 @@ function row(item, depth, nChildren) {
     if (item.waiting_for) detail.append(el("span", "waiting", "waiting: " + item.waiting_for));
     content.append(detail);
   }
-  line.append(caret, box, content);
+  line.append(caret, check, content);
   itemEvents(line, item);
   r.append(line);
   return r;
@@ -565,7 +596,7 @@ function driverChip(item) {
   const alive = pane && pane.alive;
   const name = "@" + whoName(item.driver);
   const chip = el("button", "badge driver" + (pane && !alive ? " ended" : ""), name);
-  chip.title = name + (alive ? " — jump to this pane" : " — this session is gone; pick another driver below");
+  chip.dataset.tooltip = name + (alive ? " — jump to this pane" : " — this session is gone; pick another driver below");
   chip.onclick = () => {
     if (alive) api("/api/jump", { method: "POST", body: JSON.stringify({ pane: pane.pane }) }).catch(showError);
     else {
@@ -596,10 +627,11 @@ function renderInspector() {
   const toggle = el("button", "toggle", state.editing ? "Done" : "Edit");
   toggle.onclick = () => select(item.id, !state.editing);
   const close = el("button", "close", "×");
-  close.title = "Close (Esc)";
+  close.dataset.tooltip = "Close (Esc)";
+  close.setAttribute("aria-label", "Close");
   close.onclick = () => select(null);
   head.append(el("b", "", item.title), meta, toggle, close);
-  head.title = "id " + item.id;
+  head.dataset.tooltip = "id " + item.id;
   box.append(head);
   if (state.view === "graph" && item.parent && state.byId[item.parent]) {
     const parent = el("button", "graph-parent", "‹ " + state.byId[item.parent].title);
