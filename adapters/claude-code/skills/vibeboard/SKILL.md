@@ -24,6 +24,17 @@ private list.
 3. **After a detour, say which planned step comes next**, both in the chat
    and with `vibeboard set ID --next "…"`.
 
+4. **Keep titles short.** Keep a task or step title within 60 characters. Put
+   context, acceptance criteria, paths, and long explanations in `--desc`.
+   Example: use `修复评测部署` as the title and put the affected service and
+   failure details in the description.
+
+5. **Clean up after completion.** After marking work `done`, clear stale
+   `next` and `waiting_for` text, review dependencies that no longer describe
+   live work, and archive temporary issue or handoff items with
+   `vibeboard archive ID` when they are no longer useful. Keep completed work
+   that serves as history, and report the cleanup in the handoff.
+
 ## Commands
 
 ```
@@ -51,6 +62,12 @@ of an item's steps means depending on the item.
 `--status waiting` and say on whom in `--waiting`: `"me: approve the resize"`
 when it is the human (`me` always means the human, never a session), or a
 name, or a machine.
+
+When handing work to another session, leave the item or step in a truthful
+status, write the current result and the next action in `description` and
+`next`, name the blocker in `waiting_for` when one exists, and keep only the
+smallest real prerequisites in `depends_on`. The receiving session reads this
+context before it claims the item.
 
 Your session and project are detected from the pane you run in; there is
 nothing to configure.

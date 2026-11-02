@@ -36,15 +36,19 @@ items are yours, agents are just the ones pushing them.
 
   Project and Session are bound to the pane you click into, like iTerm2's
   Notes.
-- **List and Graph views**: Graph lays out independent subgraphs side by side,
-  with task backgrounds containing sub-steps arranged by dependency. Task and
-  cross-task step links keep related groups in the same flow. Branching subgraphs
-  receive more width; collapsed tasks remain compact nodes. Each level fits the current
-  sidebar width; dense levels use short titles, with full text on hover or in
-  the inspector. Independent flows wrap to fit narrower panels, and tasks without
-  steps appear as single nodes. Click a node for details and completion,
-  double-click to edit, or follow its prerequisite links. Completed tasks and
-  steps start folded. View choice and task folds are remembered. The panel
+- **List and Graph views**: Graph shows a task tree with separate dependency
+  branches inside each task background. Thin lines show membership; arrows run
+  from prerequisites to dependent steps, including splits, joins and cross-task
+  links. Select a node to highlight its prerequisite and dependent chains.
+  Folded items retain dashed arrows with summaries that reveal the original
+  endpoints. Prerequisites outside the current scope appear as navigation links.
+  Tasks start as compact nodes with steps folded, and saved folds are respected.
+  Independent flows pack by their actual height; node widths adapt to the sidebar
+  without stretching across wide columns. Expand individual tasks as needed, or
+  use Expand tasks / Collapse tasks for the current scope. Dense branches wrap
+  to keep titles readable. Completed items start folded. Click
+  a node for details and completion, double-click to edit, or hover for its full
+  title and description. View choice and task folds are remembered. The panel
   uses a small bundled set of Lucide icons, with no runtime download.
 - **Every item records** its status (`todo`, `doing`, `waiting`, `later`,
   `done`), its driver (which session pushes it, if any), its origin, who

@@ -12,6 +12,8 @@ follows [Semantic Versioning](https://semver.org/).
   of the iTerm API script, and keep its URL stable across crashes.
 - Show an explicit stale-data banner while disconnected, bound request timeouts,
   disable offline edits, and refresh the board on reconnection.
+- A resumed session uses its focused or live pane for names and jump targets,
+  so an older pane record cannot replace the current name with a short session ID.
 - Renaming an iTerm session refreshes its name in the panel without a task edit
   or pane switch. Version polling includes live session names and retains the
   three-second lookup cache.
@@ -31,7 +33,7 @@ follows [Semantic Versioning](https://semver.org/).
 
 - Graph view alongside List, with collapsible task backgrounds, subtask
   dependency layers, and independent flow entries. Nodes resize per level
-  to the available sidebar width, with compact labels in dense rows. Full
+  to the available sidebar width, wrapping dense rows to keep labels readable. Full
   titles and completion controls are available in the inspector. Completed
   tasks and steps start folded; prerequisite links reveal their targets.
   Includes a bundled Lucide icon subset and its license.
@@ -40,10 +42,15 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Graph arranges independent task subgraphs side by side, with more width for
-  branching flows. Task and cross-task step dependencies determine which groups
-  share a flow and their layers; arrows still represent only explicit prerequisites.
-  Collapsed tasks appear as compact nodes, and narrow panels wrap to fewer columns.
+- Graph presents a task tree with separate dependency branches inside each task.
+  Membership lines have no arrowheads; prerequisite arrows show splits and joins.
+  Tasks start as compact nodes with steps folded. Saved folds are respected;
+  Expand tasks / Collapse tasks controls the current scope. Selecting a task or step highlights its prerequisite
+  and dependent chains. Folded endpoints retain dashed arrows with explicit
+  summaries that reveal the original items; out-of-scope prerequisites remain
+  navigation links. Cycle warnings use item dependencies, so interleaved steps
+  across task groups do not produce false warnings. Independent flows pack by
+  actual height, and compact node widths adapt to narrow and wide panels.
 - Graph tooltips appear after 200 ms and switch immediately
   when another hint is hovered within 500 ms. Click, scroll and Escape dismiss them.
   Hints cover collapsed task blocks, expanded task headers and individual steps;

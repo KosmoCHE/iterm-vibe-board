@@ -176,7 +176,12 @@ function scopedChildren(items) {
 function paneOf(who) {
   const b = state.board;
   if (b.panes[who]) return b.panes[who];
-  return Object.values(b.panes).find((p) => p.session === who) || null;
+  const matches = Object.values(b.panes).filter((p) => p.session === who);
+  // A resumed session can leave old pane records behind. Prefer its current pane.
+  return matches.find((p) => p.pane === b.focus.pane && !p.ended_at) ||
+    matches.find((p) => p.alive && !p.ended_at) ||
+    matches.find((p) => !p.ended_at && p.name) ||
+    matches.find((p) => p.name) || matches[0] || null;
 }
 
 function whoName(who) {
@@ -586,6 +591,7 @@ function select(id, edit = false) {
   }
   document.querySelectorAll(".graph-node").forEach((x) => x.classList.toggle("selected", x.dataset.id === id));
   document.querySelectorAll(".graph-task").forEach((x) => x.classList.toggle("selected-task", x.dataset.task === id));
+  if (state.view === "graph") highlightGraph();
   renderInspector();
   const row = id && (state.view === "graph" ? document.querySelector(`#graph [data-id="${id}"]`) : document.querySelector(`.row[data-id="${id}"]`));
   if (row) row.scrollIntoView({ block: "nearest" }); // the inspector just took space below
