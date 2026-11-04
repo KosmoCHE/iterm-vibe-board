@@ -12,6 +12,8 @@ def tmp_home(tmp_path, monkeypatch):
     monkeypatch.delenv("ITERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TMUX", raising=False)
+    monkeypatch.delenv("CLAUDE_JOB_DIR", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
     return tmp_path
 
 
@@ -150,6 +152,21 @@ def test_nested_session_hands_the_pane_back(monkeypatch):
     feed({"hook_event_name": "SessionEnd", "session_id": "outer"})
     cli.main(["hook"])
     assert store.identity() == (store.ME, None)
+
+
+def test_background_job_leaves_the_launching_pane_alone(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    store.set_pane("ABC-123", session="fg", project="/tmp/a")
+    monkeypatch.setenv("CLAUDE_JOB_DIR", "/tmp/jobs/bg")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "bg")
+    assert store.identity() == ("bg", None)
+    for name in ("SessionStart", "SessionEnd"):
+        event = {"hook_event_name": name, "session_id": "bg", "cwd": "/tmp/b"}
+        monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
+        assert cli.main(["hook"]) == 0
+        assert store.get_pane("ABC-123")["session"] == "fg"
+    monkeypatch.delenv("CLAUDE_JOB_DIR")
+    assert store.identity() == ("fg", "/tmp/a")
 
 
 def test_start_and_done_times_come_from_the_clock():

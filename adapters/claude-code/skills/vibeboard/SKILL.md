@@ -69,5 +69,6 @@ status, write the current result and the next action in `description` and
 smallest real prerequisites in `depends_on`. The receiving session reads this
 context before it claims the item.
 
-Your session and project are detected from the pane you run in; there is
-nothing to configure.
+Your session and project are detected from the pane you run in; a background
+job is known by its own session and files new items under the current
+directory. There is nothing to configure.

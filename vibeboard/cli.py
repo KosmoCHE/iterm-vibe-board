@@ -346,6 +346,8 @@ def cmd_hook(args: argparse.Namespace) -> None:
     if not session:
         return
     _hook_log(event)
+    if store.background():  # the pane it inherited belongs to the session that launched it
+        return
     if event.get("hook_event_name") == "SessionStart" and event.get("cwd"):
         _pane_start(session, _project_dir(event))
     elif event.get("hook_event_name") == "SessionEnd":

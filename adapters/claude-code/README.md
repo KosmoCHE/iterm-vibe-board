@@ -13,7 +13,9 @@ Two pieces, nothing else:
 
 The pane is taken from `TERM_SESSION_ID`, the way iTerm2's own Claude Code
 integration does it. Inside tmux that variable names whichever pane started
-the server, so the hook records nothing there.
+the server, so the hook records nothing there. A background job (`CLAUDE_JOB_DIR`
+set) inherits the variable from the pane that launched it, so the hook records
+nothing for it either; the board knows it by `CLAUDE_CODE_SESSION_ID`.
 
 ## Install
 

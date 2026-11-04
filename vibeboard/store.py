@@ -406,11 +406,20 @@ def panes() -> dict[str, dict]:
     return out
 
 
+def background() -> bool:
+    """A background Claude Code job inherits the pane variables of the pane that launched it."""
+    return bool(os.environ.get("CLAUDE_JOB_DIR"))
+
+
 def identity() -> tuple[str, str | None]:
-    """Who is calling: the session registered in this pane, or the human.
+    """Who is calling: a background job's own session, the session registered in this
+    pane, or the human.
 
     Returns (who, project). `who` is a session id or ME.
     """
+    session = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if background() and session:
+        return session, None
     pane = current_pane()
     info = get_pane(pane) if pane else None
     if info and info.get("session") and not info.get("ended_at"):

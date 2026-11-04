@@ -12,6 +12,9 @@ follows [Semantic Versioning](https://semver.org/).
   of the iTerm API script, and keep its URL stable across crashes.
 - Show an explicit stale-data banner while disconnected, bound request timeouts,
   disable offline edits, and refresh the board on reconnection.
+- A background Claude Code job is identified by its own session instead of the
+  pane it was launched from, and its hooks leave that pane's record alone. Its
+  items no longer show under the launching session's name.
 - A resumed session uses its focused or live pane for names and jump targets,
   so an older pane record cannot replace the current name with a short session ID.
 - Renaming an iTerm session refreshes its name in the panel without a task edit
