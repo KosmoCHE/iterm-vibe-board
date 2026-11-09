@@ -7,6 +7,7 @@ restarts it at the same URL; no agent hooks or task files are modified here.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -69,6 +70,17 @@ def service_config(python: str, root: Path, data: Path) -> dict:
     }
 
 
+def wait_healthy(req: urllib.request.Request) -> None:
+    for _ in range(20):
+        try:
+            with urllib.request.urlopen(req, timeout=1) as response:
+                json.load(response)
+            return
+        except (OSError, ValueError):
+            time.sleep(0.25)
+    raise RuntimeError("Server did not become healthy")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--uninstall", action="store_true")
@@ -98,31 +110,56 @@ def main() -> None:
                     "panel script in iTerm2's Scripts console, then retry. "
                     "No existing process was stopped."
                 )
-    if not loaded or not path.exists() or path.read_bytes() != content:
-        if loaded:
-            subprocess.run(["launchctl", "bootout", target], check=True)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
-        path.chmod(0o600)
-        subprocess.run(["launchctl", "bootstrap", domain, str(path)], check=True)
+    previous = path.read_bytes() if path.exists() else None
+    if loaded and previous is None:
+        raise SystemExit(
+            f"Cannot safely upgrade without the existing service configuration: {path}"
+        )
+    changed = not loaded or previous != content
+    if changed and loaded:
+        subprocess.run(["launchctl", "bootout", target], check=True)
     req = urllib.request.Request(
         f"http://127.0.0.1:{DEFAULT_PORT}/api/version",
         headers={"X-Vibeboard-Token": token},
     )
-    for _ in range(20):
-        try:
-            with urllib.request.urlopen(req, timeout=1) as response:
-                json.load(response)
-            break
-        except (OSError, ValueError):
-            time.sleep(0.25)
-    else:
-        raise SystemExit(f"Server did not become healthy; inspect {data / 'server.log'}")
     link = data / "runtime/current"
     temp = link.with_name(".current.tmp")
-    temp.unlink(missing_ok=True)
-    temp.symlink_to(root.name)
-    temp.replace(link)
+    try:
+        if changed:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+            path.chmod(0o600)
+            subprocess.run(["launchctl", "bootstrap", domain, str(path)], check=True)
+        wait_healthy(req)
+        temp.unlink(missing_ok=True)
+        temp.symlink_to(root.name)
+        temp.replace(link)
+    except (OSError, subprocess.CalledProcessError, RuntimeError) as error:
+        if not changed:
+            raise SystemExit(f"{error}; inspect {data / 'server.log'}") from error
+        try:
+            # Bootstrap can fail after registering a job, so check before removing it.
+            if subprocess.run(["launchctl", "print", target], capture_output=True).returncode == 0:
+                subprocess.run(["launchctl", "bootout", target], check=True)
+            if previous is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(previous)
+                path.chmod(0o600)
+            if loaded:
+                subprocess.run(["launchctl", "bootstrap", domain, str(path)], check=True)
+                wait_healthy(req)
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as rollback_error:
+            raise SystemExit(
+                f"{error}; rollback also failed: {rollback_error}. Inspect {data / 'server.log'}"
+            ) from rollback_error
+        result = "Previous service restored" if loaded else "Previous stopped state restored"
+        if previous is None:
+            result = "Failed installation removed"
+        raise SystemExit(f"{error}; {result}. Inspect {data / 'server.log'}") from error
+    finally:
+        with contextlib.suppress(OSError):
+            temp.unlink(missing_ok=True)
     print("Vibe Board server installed; launchd will restart it after an unexpected exit.")
 
 

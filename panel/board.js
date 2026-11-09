@@ -21,11 +21,12 @@ const state = {
   showDone: {}, // "tab:key": true when that level's done items are unfolded
   menu: null, // item the context menu is open for
   filter: "", // Global only: "" | "project:<path>" | "who:<session>"
-  down: false, // the server was unreachable; reload when it is back to pick up new assets
+  down: false, // the server is unreachable; retry and fetch fresh data on reconnect
   assets: null, // version of the panel files the page was loaded with
   undo: [],
   error: "",
   polling: false,
+  renderPending: false, // fresh data is waiting for the inspector's focused field
   syncedAt: null,
   notice: "",
 };
@@ -62,8 +63,9 @@ async function poll() {
       state.version = version;
       state.focusPane = focus;
       state.error = "";
-      render();
+      state.renderPending = true;
     }
+    if (state.renderPending) render();
     state.down = false;
     state.syncedAt = new Date();
     renderConnection();
@@ -78,9 +80,10 @@ async function poll() {
 
 function renderConnection() {
   const banner = $("#connection");
-  banner.hidden = !state.down;
-  banner.textContent = "看板连接已断开，正在重连。当前显示的是旧数据" +
-    (state.syncedAt ? `（最后同步 ${state.syncedAt.toLocaleTimeString()}）` : "") + "。";
+  banner.hidden = !state.down && !state.renderPending;
+  banner.textContent = state.down ? "看板连接已断开，正在重连。当前显示的是旧数据" +
+    (state.syncedAt ? `（最后同步 ${state.syncedAt.toLocaleTimeString()}）` : "") + "。" :
+    "已连接，有更新等待显示。结束当前字段的编辑后自动刷新。";
   document.body.classList.toggle("offline", state.down);
 }
 
@@ -268,7 +271,8 @@ function el(tag, cls = "", text) {
 }
 
 function render() {
-  if (typing()) return; // never rebuild under the cursor
+  if (typing()) { state.renderPending = true; return; } // never rebuild under the cursor
+  state.renderPending = false;
   const b = state.board;
   state.byId = Object.fromEntries(b.items.map((i) => [i.id, i]));
   state.children = {};
@@ -292,6 +296,7 @@ function render() {
   renderAdd();
   renderInspector();
   renderStatus();
+  renderConnection();
 }
 
 function renderTree(items) {

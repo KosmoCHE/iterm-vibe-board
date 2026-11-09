@@ -12,6 +12,12 @@ follows [Semantic Versioning](https://semver.org/).
   of the iTerm API script, and keep its URL stable across crashes.
 - Show an explicit stale-data banner while disconnected, bound request timeouts,
   disable offline edits, and refresh the board on reconnection.
+- Keep updates received during editing pending until the focused field is left,
+  then redraw even if the server version has not changed again. Show a pending
+  update notice while preserving the input.
+- Restore the previous service configuration and running state after a failed
+  upgrade. Confirm the old service is healthy before reporting recovery; remove
+  failed first installations and report rollback failures explicitly.
 - A background Claude Code job is identified by its own session instead of the
   pane it was launched from, and its hooks leave that pane's record alone. Its
   items no longer show under the launching session's name.
