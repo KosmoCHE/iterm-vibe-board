@@ -224,11 +224,13 @@ def stored_token() -> str:
     return token
 
 
-def serve(port: int = DEFAULT_PORT, token: str | None = None) -> BoardServer:
+def serve(
+    port: int = DEFAULT_PORT, token: str | None = None, strict_port: bool = False
+) -> BoardServer:
     token = token or stored_token()
     try:
         return BoardServer(port, token)
     except OSError:
-        if port == 0:
+        if port == 0 or strict_port:
             raise
         return BoardServer(0, token)  # the usual port is taken: any free one

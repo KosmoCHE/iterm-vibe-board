@@ -111,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     sv = sub.add_parser("serve", help="run the panel server")
     sv.add_argument("--port", type=int, default=None, help="default 47431, any free port if taken")
     sv.add_argument("--token", help="default: the one stored in the data directory")
+    sv.add_argument("--strict-port", action="store_true", help="fail if the requested port is busy")
     sv.add_argument(
         "--json", action="store_true", help="print one JSON line with the url, then serve"
     )
@@ -409,7 +410,8 @@ def cmd_serve(args: argparse.Namespace) -> None:
     from vibeboard.server import serve
 
     server = serve(
-        **{k: v for k, v in (("port", args.port), ("token", args.token)) if v is not None}
+        strict_port=args.strict_port,
+        **{k: v for k, v in (("port", args.port), ("token", args.token)) if v is not None},
     )
     if args.json:
         print(

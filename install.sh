@@ -67,6 +67,7 @@ EOF
 
 uninstall() {
   pkill -f "$PANEL" 2>/dev/null || true
+  PYTHONPATH="$ROOT" "$PYTHON" -m vibeboard.service --uninstall
   pkill -f "vibeboard serve" 2>/dev/null || true
   rm -f "$BIN" "$SKILL" "$PANEL"
   [ -f "$SETTINGS" ] && hooks uninstall
@@ -107,6 +108,8 @@ EOF
   fi
 
   runtime=$(runtime_python)
+  PYTHONPATH="$ROOT" "$PYTHON" -m vibeboard.service
+  ln -sfn "$DATA/runtime/current/iterm/vibeboard_panel.py" "$PANEL"
   if [ -z "$runtime" ]; then
     echo "iTerm2's Python runtime is missing, so the panel cannot start yet:"
     echo "  Scripts › Manage › Install Python Runtime, then restart iTerm2 (or rerun install.sh)."

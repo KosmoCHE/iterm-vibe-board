@@ -23,6 +23,10 @@ body {
   -webkit-user-select: none; user-select: none;
 }
 button, input, select { font: inherit; color: inherit; }
+#connection { flex-shrink: 0; padding: 9px; background: #713a00; color: #fff; font-weight: 600; }
+body.offline #main { opacity: .5; }
+body.offline #main, body.offline #inspector, body.offline #add, body.offline #menu,
+body.offline #plus, body.offline #undo { pointer-events: none; }
 button { background: none; border: 0; padding: 0; cursor: default; }
 input, select { -webkit-user-select: text; user-select: text; }
 

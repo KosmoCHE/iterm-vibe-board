@@ -6,6 +6,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Supervise the panel HTTP service with a per-user macOS LaunchAgent, independent
+  of the iTerm API script, and keep its URL stable across crashes.
+- Show an explicit stale-data banner while disconnected, bound request timeouts,
+  disable offline edits, and refresh the board on reconnection.
+
 ### Changed
 
 - Items have no numbers any more. They are named by title, or by any unique

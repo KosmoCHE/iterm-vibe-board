@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """iTerm2 AutoLaunch script: starts the panel server and registers the toolbelt tool.
 
-Runs inside iTerm2's Python runtime. The server itself is a plain subprocess of
-the same interpreter, so the panel keeps working if this script is restarted.
+Runs inside iTerm2's Python runtime. Installed HTTP servers are supervised by
+launchd and survive this script or its API connection going away.
 """
 
 import asyncio
@@ -11,10 +11,16 @@ import os
 import subprocess
 import sys
 import urllib.request
+from pathlib import Path
 
 import iterm2
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))  # AutoLaunch holds a symlink
+sys.path.insert(0, ROOT)
+
+from vibeboard.server import DEFAULT_PORT, stored_token  # noqa: E402
+from vibeboard.service import LABEL  # noqa: E402
+
 TOOL_ID = "com.github.kosmoche.vibeboard"  # iTerm2 keys its tool list by this; never change it
 
 
@@ -37,16 +43,27 @@ async def main(connection):
     env = dict(os.environ, PYTHONPATH=ROOT)
     env.pop("ITERM2_COOKIE", None)
     env.pop("ITERM2_KEY", None)
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "vibeboard", "serve", "--json", "--exit-with-stdin"],
-        stdin=subprocess.PIPE,  # closes when this script dies, and the server exits with it
-        stdout=subprocess.PIPE,
-        env=env,
-        text=True,
-    )
-    info = json.loads(proc.stdout.readline())
+    managed = Path.home() / "Library/LaunchAgents" / f"{LABEL}.plist"
+    proc = None
+    if managed.exists():
+        token = stored_token()
+        info = {
+            "port": DEFAULT_PORT,
+            "token": token,
+            "url": f"http://127.0.0.1:{DEFAULT_PORT}/?token={token}",
+        }
+    else:
+        # Compatibility for manually run, uninstalled clones.
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "vibeboard", "serve", "--json", "--exit-with-stdin"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            env=env,
+            text=True,
+        )
+        info = json.loads(proc.stdout.readline())
     base = f"http://127.0.0.1:{info['port']}"
-    print("vibeboard panel:", info["url"], file=sys.stderr, flush=True)
+    print("vibeboard panel:", base, file=sys.stderr, flush=True)
     # iTerm2 loads the URL once, when it creates the web view, and never retries: a page
     # that fails to load stays blank until the tool is closed and reopened. So do not
     # hand it the URL before the server answers.
@@ -70,19 +87,11 @@ async def main(connection):
         session = window and window.current_tab and window.current_tab.current_session
         return session.session_id if session else None
 
-    pane = focused_pane()
-    post(base, info["token"], "/api/focus", {"pane": pane})
-
-    # Any focus event may move the user to another pane: a new session in the same tab,
-    # another tab, another window, or iTerm2 coming to the front.
-    async with iterm2.FocusMonitor(connection) as monitor:
-        while True:
-            await monitor.async_get_next_update()
-            await asyncio.sleep(0.05)  # let App apply the same notification first
-            now = focused_pane()
-            if now != pane:
-                pane = now
-                post(base, info["token"], "/api/focus", {"pane": pane})
+    # App subscribes to focus notifications itself. Send a heartbeat even when
+    # focus does not change, so a restarted server regains the current pane.
+    while True:
+        post(base, info["token"], "/api/focus", {"pane": focused_pane()})
+        await asyncio.sleep(1)
 
 
 iterm2.run_forever(main)

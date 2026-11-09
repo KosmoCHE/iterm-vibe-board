@@ -22,40 +22,63 @@ const state = {
   assets: null, // version of the panel files the page was loaded with
   undo: [],
   error: "",
+  polling: false,
+  syncedAt: null,
   notice: "",
 };
 
 // --- server -----------------------------------------------------------------
 
 function api(path, options = {}) {
+  if (state.down && options.method && options.method !== "GET") {
+    return Promise.reject(new Error("看板已断线，请等待重新连接后再修改任务"));
+  }
   const sep = path.includes("?") ? "&" : "?";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   return fetch(path + sep + "token=" + encodeURIComponent(TOKEN), {
     headers: { "Content-Type": "application/json" },
+    signal: controller.signal,
     ...options,
   }).then(async (r) => {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || r.statusText);
     return data;
-  });
+  }).finally(() => clearTimeout(timeout));
 }
 
 async function poll() {
+  if (state.polling) return;
+  state.polling = true;
   try {
     const { version, assets, focus } = await api("/api/version");
-    if (state.down) return location.reload();
     if (state.assets && assets !== state.assets) return location.reload(); // panel files changed
     state.assets = assets;
-    if (version !== state.version || focus !== state.focusPane) { // data on disk or the focused pane
+    if (state.down || version !== state.version || focus !== state.focusPane) {
       state.board = await api("/api/board");
       state.version = version;
       state.focusPane = focus;
       state.error = "";
       render();
     }
+    state.down = false;
+    state.syncedAt = new Date();
+    renderConnection();
   } catch (e) {
-    if (e instanceof TypeError) state.down = true; // network failure: the server is away
+    state.down = true;
+    renderConnection();
     showError(e);
+  } finally {
+    state.polling = false;
   }
+}
+
+function renderConnection() {
+  const banner = $("#connection");
+  banner.hidden = !state.down;
+  banner.textContent = "看板连接已断开，正在重连。当前显示的是旧数据" +
+    (state.syncedAt ? `（最后同步 ${state.syncedAt.toLocaleTimeString()}）` : "") + "。";
+  document.body.classList.toggle("offline", state.down);
 }
 
 async function patch(id, fields, undoable = true) {

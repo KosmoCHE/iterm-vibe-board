@@ -6,6 +6,32 @@
 
 [English](README.md)
 
+## 断线与恢复
+
+安装器会用当前用户的 macOS LaunchAgent 托管本地数据服务。它仅监听
+`127.0.0.1:47431`，不依赖 Codex 会话或 iTerm Python API 连接的寿命；服务异常退出后
+由 launchd 自动重启，继续使用原端口和认证 token。iTerm AutoLaunch 脚本负责注册侧栏
+和同步当前窗格，任务数据仍保存在 `~/.iterm-vibe-board/`。
+服务使用 `~/.iterm-vibe-board/runtime/` 下按内容版本保存的运行文件，避免后台进程
+受 `Documents` 目录访问限制影响；`runtime/current` 指向已通过健康检查的版本。
+每个版本的 `source.json` 记录来源目录和内容摘要，不包含凭证。
+
+断线时侧栏顶部显示“当前是旧数据”和最后同步时间，并暂时禁止修改；每秒重试，
+单次请求最多等待 5 秒。恢复后重新读取任务，不需要重复执行 `done`。
+这只解决状态同步；任务是否完成仍由你或 agent 根据实际结果更新。
+
+已有安装只升级服务、不改 hooks，可从新版仓库运行：
+
+```sh
+python3 -m vibeboard.service
+```
+
+若提示端口占用，先在 iTerm2 的 Scripts 控制台停止旧的 `vibeboard_panel.py`，再执行。
+安装器不会杀死占用端口的未知进程。随后重新运行新版 AutoLaunch 脚本，以恢复窗格跟随。
+LaunchAgent 位于 `~/Library/LaunchAgents/com.github.kosmoche.vibeboard.server.plist`，
+故障日志在 `~/.iterm-vibe-board/server.log`。单独卸载服务用
+`python3 -m vibeboard.service --uninstall`；完整卸载也会移除它，保留任务数据。
+
 ## 为什么
 
 同时开好几个 Claude Code 会话时，iTerm2 自带的 Session Status 能告诉你哪个 pane 在跑、在等、闲着。它回答不了的是：
