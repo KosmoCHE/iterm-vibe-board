@@ -1,5 +1,9 @@
 import io
 import json
+import os
+import pty
+import subprocess
+import sys
 
 import pytest
 
@@ -14,6 +18,7 @@ def tmp_home(tmp_path, monkeypatch):
     monkeypatch.delenv("TMUX", raising=False)
     monkeypatch.delenv("CLAUDE_JOB_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    monkeypatch.setattr(cli, "_has_terminal", lambda: True)
     return tmp_path
 
 
@@ -167,6 +172,83 @@ def test_background_job_leaves_the_launching_pane_alone(monkeypatch):
         assert store.get_pane("ABC-123")["session"] == "fg"
     monkeypatch.delenv("CLAUDE_JOB_DIR")
     assert store.identity() == ("fg", "/tmp/a")
+
+
+def test_out_of_order_session_end_does_not_restore_finished_session(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    for session in ["root", "first", "second"]:
+        cli._pane_start(session, "/tmp/" + session)
+    cli._pane_end("first")
+    assert store.identity() == ("second", "/tmp/second")
+    cli._pane_end("second")
+    assert store.identity() == ("root", "/tmp/root")
+    assert store.get_pane("ABC-123")["outer"] == []
+
+
+def test_resuming_outer_session_discards_stale_inner_chain(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    cli._pane_start("root", "/tmp/root")
+    started = store.get_pane("ABC-123")["started_at"]
+    for session in ["first", "second"]:
+        cli._pane_start(session, "/tmp/" + session)
+    cli._pane_start("root", "/tmp/root")
+    assert store.identity() == ("root", "/tmp/root")
+    assert store.get_pane("ABC-123")["started_at"] == started
+    assert store.get_pane("ABC-123")["outer"] == []
+    before = store.get_pane("ABC-123")
+    cli._pane_end("second")  # a late hook from the discarded session
+    assert store.get_pane("ABC-123") == before
+    cli._pane_end("root")
+    assert store.identity() == (store.ME, None)
+
+
+def test_detached_diagnostic_pty_cannot_take_over_pane(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    cli._pane_start("main", "/tmp/main")
+    before = store.get_pane("ABC-123")
+    master, slave = pty.openpty()
+    # Match diagnostic runners: PTY stdio, a new OS session, inherited iTerm ID,
+    # then a hook with piped JSON stdin. No real Claude process is started.
+    script = """
+import json, os, subprocess, sys
+assert os.isatty(0)
+event = {"hook_event_name": "SessionStart", "session_id": "diagnostic", "cwd": "/tmp/test"}
+subprocess.run([sys.executable, "-m", "vibeboard", "hook"],
+               input=json.dumps(event), text=True, capture_output=True, check=True)
+"""
+    try:
+        subprocess.run(
+            [sys.executable, "-c", script],
+            stdin=slave,
+            capture_output=True,
+            start_new_session=True,
+            check=True,
+            timeout=10,
+        )
+    finally:
+        os.close(master)
+        os.close(slave)
+    assert store.get_pane("ABC-123") == before
+
+
+def test_session_end_can_release_pane_after_losing_terminal(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    cli._pane_start("root", "/tmp/root")
+    cli._pane_start("inner", "/tmp/inner")
+    monkeypatch.setattr(cli, "_has_terminal", lambda: False)
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(
+            json.dumps(
+                {
+                    "hook_event_name": "SessionEnd",
+                    "session_id": "inner",
+                }
+            )
+        ),
+    )
+    assert cli.main(["hook"]) == 0
+    assert store.identity() == ("root", "/tmp/root")
 
 
 def test_start_and_done_times_come_from_the_clock():

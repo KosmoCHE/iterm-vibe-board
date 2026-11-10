@@ -8,6 +8,9 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Detached diagnostic sessions without a controlling terminal cannot take over an
+  inherited iTerm pane. Resuming an outer session clears its stale inner chain,
+  and out-of-order session endings no longer restore an already finished session.
 - Supervise the panel HTTP service with a per-user macOS LaunchAgent, independent
   of the iTerm API script, and keep its URL stable across crashes.
 - Show an explicit stale-data banner while disconnected, bound request timeouts,

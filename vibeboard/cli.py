@@ -309,6 +309,12 @@ def _pane_start(session: str, project: str) -> None:
         return
     info = store.get_pane(pane) or {}
     outer = info.get("outer") or []
+    for index, previous in enumerate(outer):
+        if previous["session"] == session:
+            # Resuming an outer session supersedes the stale inner-session chain.
+            info = previous
+            outer = outer[:index]
+            break
     if info.get("session") and info["session"] != session and not info.get("ended_at"):
         # A session started inside a running one: the agent ran `claude` itself. The
         # pane belongs to the inner one until it ends, then goes back to the outer.
@@ -327,9 +333,14 @@ def _pane_start(session: str, project: str) -> None:
 def _pane_end(session: str) -> None:
     pane = store.current_pane()
     info = store.get_pane(pane) if pane else None
-    if not info or info.get("session") != session:
+    if not info:
         return
     outer = info.get("outer") or []
+    if info.get("session") != session:
+        remaining = [entry for entry in outer if entry["session"] != session]
+        if remaining != outer:
+            store.set_pane(pane, outer=remaining)
+        return
     if outer:  # back to the session this one ran inside
         store.set_pane(pane, **outer[-1], ended_at=None, outer=outer[:-1])
     else:
@@ -348,10 +359,21 @@ def cmd_hook(args: argparse.Namespace) -> None:
     _hook_log(event)
     if store.background():  # the pane it inherited belongs to the session that launched it
         return
-    if event.get("hook_event_name") == "SessionStart" and event.get("cwd"):
+    if event.get("hook_event_name") == "SessionStart" and event.get("cwd") and _has_terminal():
         _pane_start(session, _project_dir(event))
     elif event.get("hook_event_name") == "SessionEnd":
         _pane_end(session)
+
+
+def _has_terminal() -> bool:
+    # Detached diagnostic PTYs can inherit iTerm IDs without belonging to that pane.
+    # Hook stdin is JSON, so isatty(stdin) cannot identify a real terminal session.
+    try:
+        fd = os.open("/dev/tty", os.O_RDONLY | os.O_NOCTTY)
+    except OSError:
+        return False
+    os.close(fd)
+    return True
 
 
 def _hook_log(event: dict) -> None:
