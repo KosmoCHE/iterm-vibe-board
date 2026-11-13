@@ -13,6 +13,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,8 +22,9 @@ from urllib.parse import parse_qs, urlparse
 
 from vibeboard import store
 
-PANEL = Path(__file__).resolve().parent.parent / "panel"
+PANEL = Path(__file__).resolve().parent.parent / "ui" / "dist"  # built by ui/web/build.mjs
 IT2 = shutil.which("it2") or "/Applications/iTerm.app/Contents/Resources/utilities/it2"
+PASEO = shutil.which("paseo") or "/Applications/Paseo.app/Contents/Resources/bin/paseo"
 LABELS = {
     "todo": "To do",
     "doing": "In progress",
@@ -31,6 +33,7 @@ LABELS = {
     "done": "Done",
 }
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript"}
+ARCHIVE_EVERY = 3600  # seconds between two looks for finished tasks to archive
 
 
 class BoardServer(ThreadingHTTPServer):
@@ -41,30 +44,53 @@ class BoardServer(ThreadingHTTPServer):
         self.token = token or secrets.token_urlsafe(24)
         self.focus: str | None = None  # pane the user is looking at, pushed by the iTerm2 script
         self._names: tuple[dict, float] = ({}, 0.0)
+        self._silent: set[str] = set()  # listing commands whose failure was already reported
+        self.settings_changed = threading.Event()
 
     @property
     def url(self) -> str:
         return f"http://127.0.0.1:{self.server_port}/?token={self.token}"
 
+    def _listed(self, command: list[str]) -> list[dict]:
+        """What a host's own CLI lists, or nothing when it cannot be asked."""
+        try:
+            out = subprocess.run(command, capture_output=True, text=True, timeout=3)
+            listed = json.loads(out.stdout)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+            if command[0] not in self._silent:  # say it once, not every refresh
+                print(f"vibeboard: {' '.join(command)} failed: {e!r}", file=sys.stderr, flush=True)
+            self._silent.add(command[0])
+            return []
+        self._silent.discard(command[0])
+        return listed
+
     def pane_names(self) -> dict[str, str]:
-        """Pane names as iTerm2 shows them, from `it2 session list`, cached briefly."""
+        """Names of the live panes as their hosts show them, cached briefly: iTerm2's
+        sessions, and Paseo's agents once a Paseo session is on the board."""
         names, stamp = self._names
         if time.time() - stamp < 3:
             return names
-        try:
-            out = subprocess.run(
-                [IT2, "session", "list", "--json"], capture_output=True, text=True, timeout=3
+        names = {
+            s["id"].upper(): s.get("name") or s.get("title") or ""
+            for s in self._listed([IT2, "session", "list", "--json"])
+        }
+        if any(
+            p.get("host") == store.PASEO and not p.get("ended_at") for p in store.panes().values()
+        ):
+            names.update(
+                (a["id"].upper(), a.get("name") or "")
+                for a in self._listed([PASEO, "ls", "--global", "--json"])
+                if a.get("status") != "closed"
             )
-            names = {
-                s["id"].upper(): s.get("name") or s.get("title") or ""
-                for s in json.loads(out.stdout)
-            }
-        except (OSError, ValueError, subprocess.TimeoutExpired) as e:
-            if not names:  # say it once, not every refresh
-                print(f"vibeboard: it2 session list failed: {e!r}", file=sys.stderr, flush=True)
-            names = {}
         self._names = (names, time.time())
         return names
+
+    def keep_archiving(self) -> None:
+        """Take long-finished tasks off the board: now, hourly, and when the setting changes."""
+        while True:
+            store.archive_finished()
+            self.settings_changed.wait(ARCHIVE_EVERY)
+            self.settings_changed.clear()
 
     def version(self) -> str:
         # Renaming a live session does not touch the task store.
@@ -77,26 +103,16 @@ class BoardServer(ThreadingHTTPServer):
         for pane, info in store.panes().items():
             name = names.get(pane) or info.get("name", "")  # a stored name outlives the pane
             panes[pane] = dict(info, name=name, alive=pane in names)
-        focus = {"pane": self.focus, "session": None, "project": None}
-        info = panes.get(self.focus or "")
-        if info and not info.get("ended_at"):
-            focus.update(session=info.get("session"), project=info.get("project"))
-        labels = dict(LABELS)
-        config = store.home() / "config.json"
-        if config.is_file():
-            try:
-                labels.update(json.loads(config.read_text(encoding="utf-8")).get("labels", {}))
-            except ValueError:
-                pass
         return {
             "version": self.version(),
-            "focus": focus,
+            "focus": {"pane": self.focus},  # the panel works out what runs there
             "projects": store.projects(),
             "panes": panes,
             "items": list(store.load_all().values()),
             "statuses": store.STATUSES,
             "origins": store.ORIGINS,
-            "labels": labels,
+            "labels": {**LABELS, **store.config().get("labels", {})},
+            "settings": {"archive_after_days": store.archive_after_days()},
             "me": store.ME,
         }
 
@@ -161,7 +177,10 @@ class Handler(BaseHTTPRequestHandler):
                 }
             )
         elif url.path == "/api/board":
-            self._json(self.server.board())
+            try:
+                self._json(self.server.board())
+            except ValueError as e:  # the user's config.json does not parse
+                self._error(HTTPStatus.BAD_REQUEST, f"config.json: {e}")
         else:
             self._error(HTTPStatus.NOT_FOUND, "not found")
 
@@ -186,9 +205,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.focus = store.pane_id(body["pane"]) if body.get("pane") else None
                 self._json({"ok": True})
             elif url.path == "/api/jump":
-                subprocess.run(
-                    [IT2, "session", "focus", store.pane_id(body["pane"])], timeout=5, check=False
-                )
+                pane = store.pane_id(body["pane"])
+                if (store.get_pane(pane) or {}).get("host") == store.PASEO:
+                    raise ValueError("this session runs in Paseo: open it from the board there")
+                subprocess.run([IT2, "session", "focus", pane], timeout=5, check=False)
                 self._json({"ok": True})
             else:
                 self._error(HTTPStatus.NOT_FOUND, "not found")
@@ -203,11 +223,18 @@ class Handler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.UNAUTHORIZED, "bad token")
             return
         parts = url.path.split("/")
-        if len(parts) != 4 or parts[1:3] != ["api", "items"]:
-            self._error(HTTPStatus.NOT_FOUND, "not found")
-            return
         try:
-            self._json(store.update(parts[3], **self._body()))
+            if url.path == "/api/settings":
+                body = self._body()
+                if set(body) != {"archive_after_days"}:
+                    raise ValueError("settings: archive_after_days is the one thing to set")
+                store.set_archive_after_days(body["archive_after_days"])
+                self.server.settings_changed.set()  # archive by the new rule right away
+                self._json(body)
+            elif len(parts) == 4 and parts[1:3] == ["api", "items"]:
+                self._json(store.update(parts[3], **self._body()))
+            else:
+                self._error(HTTPStatus.NOT_FOUND, "not found")
         except KeyError as e:
             self._error(HTTPStatus.NOT_FOUND, f"no such item {e}")
         except ValueError as e:

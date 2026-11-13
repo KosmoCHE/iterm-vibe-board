@@ -306,7 +306,7 @@ def cmd_pane_end(args: argparse.Namespace) -> None:
 
 def _pane_start(session: str, project: str) -> None:
     pane = store.current_pane()
-    if not pane:  # outside iTerm2 or inside tmux there is nothing trustworthy to record
+    if not pane:  # outside iTerm2 and Paseo, or inside tmux, there is nothing trustworthy to record
         return
     info = store.get_pane(pane) or {}
     outer = info.get("outer") or []
@@ -323,6 +323,7 @@ def _pane_start(session: str, project: str) -> None:
     same = info.get("session") == session
     store.set_pane(
         pane,
+        **({"host": store.PASEO} if store.in_paseo() else {}),
         session=session,
         project=os.path.abspath(project),
         started_at=(info.get("started_at") if same else None) or store.now(),
@@ -360,7 +361,9 @@ def cmd_hook(args: argparse.Namespace) -> None:
     _hook_log(event)
     if store.background():  # the pane it inherited belongs to the session that launched it
         return
-    if event.get("hook_event_name") == "SessionStart" and event.get("cwd") and _has_terminal():
+    # A Paseo agent has no terminal by design; in iTerm2 a session without one is detached.
+    interactive = store.in_paseo() or _has_terminal()
+    if event.get("hook_event_name") == "SessionStart" and event.get("cwd") and interactive:
         _pane_start(session, _project_dir(event))
     elif event.get("hook_event_name") == "SessionEnd":
         _pane_end(session)
@@ -470,6 +473,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
         print(f"vibeboard panel: {server.url}", flush=True)
     if args.exit_with_stdin:
         threading.Thread(target=_exit_when_stdin_closes, daemon=True).start()
+    threading.Thread(target=server.keep_archiving, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

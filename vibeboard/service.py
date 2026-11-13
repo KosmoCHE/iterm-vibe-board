@@ -29,7 +29,7 @@ LABEL = "com.github.kosmoche.vibeboard.server"
 def runtime_snapshot(root: Path, data: Path) -> Path:
     """Install immutable runtime files outside macOS-protected Documents folders."""
     files = sorted(
-        [*root.glob("vibeboard/*.py"), *root.glob("panel/*"), root / "iterm/vibeboard_panel.py"]
+        [*root.glob("vibeboard/*.py"), *root.glob("ui/dist/*"), root / "iterm/vibeboard_panel.py"]
     )
     digest = hashlib.sha256()
     for source in files:

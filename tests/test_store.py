@@ -4,6 +4,7 @@ import os
 import pty
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -16,6 +17,7 @@ def tmp_home(tmp_path, monkeypatch):
     monkeypatch.delenv("ITERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TMUX", raising=False)
+    monkeypatch.delenv("PASEO_AGENT_ID", raising=False)
     monkeypatch.delenv("CLAUDE_JOB_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
     return tmp_path
@@ -66,6 +68,39 @@ def test_done_sets_done_at_and_archive_moves_file(tmp_home):
     assert item["id"] in store.load_all(archived=True)
     store.archive(item["id"], restore=True)
     assert set(store.load_all()) == {item["id"], step["id"]}
+
+
+def test_finished_tasks_leave_the_board_after_the_set_days(monkeypatch):
+    def finish(item, days_ago):
+        moment = datetime.now(timezone.utc) - timedelta(days=days_ago)
+        with monkeypatch.context() as clock:
+            clock.setattr(store, "now", lambda: store._iso(moment))
+            return store.update(item["id"], status="done")
+
+    old = store.create("Shipped long ago", "/tmp/proj")
+    old_step = finish(store.create("Its step", "/tmp/proj", parent=old["id"]), 9)
+    old = finish(old, 8)
+    recent = finish(store.create("Shipped yesterday", "/tmp/proj"), 1)
+    open_task = store.create("Still going", "/tmp/proj")
+    done_step = finish(store.create("Its finished step", "/tmp/proj", parent=open_task["id"]), 30)
+
+    moved = store.archive_finished()
+    assert {i["id"] for i in moved} == {old["id"], old_step["id"]}
+    assert set(store.load_all()) == {recent["id"], open_task["id"], done_step["id"]}
+    kept = store.load_all(archived=True)
+    assert kept[old["id"]]["done_at"] == old["done_at"]  # the archive records what got done
+    assert store.archive(old["id"], restore=True)[0]["id"] == old["id"]
+
+    store.set_archive_after_days(None)
+    assert store.archive_finished() == []
+    store.set_archive_after_days(60)
+    assert store.archive_finished() == []
+    store.set_archive_after_days(3)
+    assert {i["id"] for i in store.archive_finished()} == {old["id"], old_step["id"]}
+    for bad in (0, -1, 1.5, "7", True):
+        with pytest.raises(ValueError):
+            store.set_archive_after_days(bad)
+    assert store.archive_after_days() == 3
 
 
 def test_identity_follows_the_pane(monkeypatch):
@@ -137,6 +172,24 @@ def test_corrupt_item_file_loses_only_that_item(tmp_home):
     bad = tmp_home / "projects" / store.project_key("/tmp/a") / "items" / "bad.json"
     bad.write_text("{not json")
     assert set(store.load_all()) == {keep["id"]}
+
+
+def test_paseo_agent_is_a_pane_without_a_terminal(monkeypatch):
+    monkeypatch.setenv("PASEO_AGENT_ID", "41deff53-1a3e")
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")  # the daemon was started in a pane
+    monkeypatch.setattr(cli, "_has_terminal", lambda: False)
+
+    def feed(e):
+        monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(e)))
+
+    feed({"hook_event_name": "SessionStart", "session_id": "agent", "cwd": "/tmp/a"})
+    cli.main(["hook"])
+    assert store.get_pane("41DEFF53-1A3E")["host"] == store.PASEO
+    assert store.get_pane("ABC-123") is None
+    assert store.identity() == ("agent", "/tmp/a")
+    feed({"hook_event_name": "SessionEnd", "session_id": "agent"})
+    cli.main(["hook"])
+    assert store.identity() == (store.ME, None)
 
 
 def test_nested_session_hands_the_pane_back(monkeypatch):

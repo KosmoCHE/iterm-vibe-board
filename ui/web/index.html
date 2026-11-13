@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vibe Board</title>
+  <style>
+    /* Looks like macOS by leaning on the system: system colours follow light/dark mode
+       and the user's accent colour. */
+    :root {
+      color-scheme: light dark;
+      --bg: Canvas;
+      --fg: CanvasText;
+      --muted: GrayText;
+      --accent: AccentColor;
+      --line: color-mix(in srgb, CanvasText 12%, transparent);
+      --card: color-mix(in srgb, CanvasText 3%, Canvas);
+      --control: color-mix(in srgb, CanvasText 6%, transparent);
+      --warn: #ff9f0a;
+      --danger: #ff453a;
+      --done: #34c759;
+    }
+    @supports not (color: AccentColor) { :root { --accent: #0a84ff; } }
+    html, body, #root { height: 100%; margin: 0; }
+    body { background: var(--bg); -webkit-user-select: none; user-select: none; }
+    #root { display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="/static/board.js"></script>
+</body>
+</html>

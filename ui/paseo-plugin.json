@@ -1,0 +1,6 @@
+{
+  "id": "vibe-board",
+  "name": "Vibe Board",
+  "description": "The progress board you share with your agents, in every workspace",
+  "requirements": { "paseo": ">=0.14.0" }
+}

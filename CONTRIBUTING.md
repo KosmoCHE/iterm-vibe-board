@@ -4,8 +4,12 @@
 
 - **Standard library only** on the Python side, plus the `iterm2` package that
   iTerm2 ships. No pip dependencies for users.
-- **No build step** for the panel. Plain HTML, CSS and JS that a browser and
-  the iTerm2 webview run as-is.
+- **One front end.** The panel is written once (`ui/client/board`), in the
+  React Native subset a Paseo plugin may use, and reaches the place it runs in
+  only through `Host` (`ui/client/board/host.ts`). A new host is a new shell,
+  not a second panel.
+- **No Node for users.** iTerm2 loads the bundle in `ui/dist`, which is
+  committed. Rebuild it with `npm run build` whenever the panel changes.
 - **Tests stay light.** Test the store, the file lock and dependency
   resolution. Do not test the UI, and do not chase coverage numbers.
 - **Small surface.** Before adding a field, a command or a setting, ask
@@ -17,9 +21,10 @@
 pip install ruff pytest
 ruff check . && ruff format --check .
 pytest -q
+cd ui && npm ci && npm run typecheck && npm run build
 ```
 
-CI runs the same three commands on macOS.
+CI runs the same commands on macOS and fails when `ui/dist` is out of date.
 
 ## Commits
 
@@ -38,7 +43,7 @@ Versions follow [SemVer](https://semver.org/); changes go into
 
 ```
 vibeboard/               store, CLI, local HTTP server
-panel/                toolbelt page
+ui/                   the panel and its two shells (iTerm2 web view, Paseo plugin)
 iterm/                AutoLaunch script
 adapters/<agent>/     one directory per supported agent
 tests/

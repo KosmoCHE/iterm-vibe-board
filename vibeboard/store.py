@@ -6,6 +6,7 @@ Layout under VIBEBOARD_HOME (default ~/.iterm-vibe-board):
     projects/<key>/items/<id>.json    live items
     projects/<key>/archive/<id>.json  archived items
     panes/<pane>.json                 which session runs in which iTerm2 pane
+    config.json                       the user's settings, absent until one is set
 
 <key> is the project path encoded the way Claude Code names ~/.claude/projects/.
 Every write replaces a whole small file atomically, so concurrent writers to
@@ -19,12 +20,14 @@ import os
 import re
 import secrets
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 STATUSES = ["todo", "doing", "waiting", "later", "done"]
 ORIGINS = ["plan", "issue", "added"]
 ME = "me"
+PASEO = "paseo"  # a pane record's `host` when the pane is a Paseo agent; iTerm2 panes carry none
+ARCHIVE_AFTER_DAYS = 7  # how long a finished task stays on the board, unless config.json says
 
 DEFAULTS = {
     "title": "",
@@ -63,9 +66,13 @@ def home() -> Path:
     return Path(os.environ.get("VIBEBOARD_HOME") or Path.home() / ".iterm-vibe-board")
 
 
+def _iso(moment: datetime) -> str:
+    return moment.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
 def now() -> str:
     """UTC with milliseconds, so items created in the same second still sort by creation."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    return _iso(datetime.now(timezone.utc))
 
 
 def project_key(path: str) -> str:
@@ -101,10 +108,11 @@ def _read_json(path: Path) -> dict:
 
 
 def version() -> float:
-    """Changes whenever any item, project or pane file is written, moved or removed."""
+    """Changes whenever an item, project, pane or settings file is written, moved or removed."""
     latest = 0.0
     for d in [
         home() / "panes",
+        home() / "config.json",
         *(home() / "projects").glob("*/items"),
         *(home() / "projects").glob("*/archive"),
     ]:
@@ -294,6 +302,13 @@ def _stamp(item: dict, status: str) -> None:
     item["done_at"] = now() if status == "done" else None
 
 
+def _move(item: dict, archived: bool) -> None:
+    """Move an item's file into the archive, or back out of it."""
+    dst = _item_path(item, archived=archived)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(_item_path(item, archived=not archived), dst)
+
+
 def archive(item_id: str, restore: bool = False) -> list[dict]:
     """Move an item and everything under it out of the live board, or back into it.
 
@@ -304,12 +319,54 @@ def archive(item_id: str, restore: bool = False) -> list[dict]:
     todo = [items[item_id]]
     while todo:
         item = todo.pop(0)
-        src = _item_path(item, archived=restore)
-        dst = _item_path(item, archived=not restore)
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(src, dst)
+        _move(item, archived=not restore)
         moved.append(item)
         todo += [i for i in items.values() if i["parent"] == item["id"]]
+    return moved
+
+
+def config() -> dict:
+    """What the user has set, in config.json: status labels, how long finished tasks stay."""
+    path = home() / "config.json"
+    return _read_json(path) if path.is_file() else {}
+
+
+def archive_after_days() -> int | None:
+    """Days a finished task stays on the board before it is archived. None: it stays."""
+    return config().get("archive_after_days", ARCHIVE_AFTER_DAYS)
+
+
+def set_archive_after_days(days: int | None) -> None:
+    if days is not None and (type(days) is not int or days < 1):
+        raise ValueError("archive_after_days is a whole number of days, or null to archive nothing")
+    _write_json(home() / "config.json", {**config(), "archive_after_days": days})
+
+
+def archive_finished() -> list[dict]:
+    """Archive every task finished more than archive_after_days() ago, with its steps.
+
+    The board then stops carrying it; the archive keeps it, done time and all. A task
+    stays while a step of it is open, or when its done time was never recorded.
+    Returns the items moved.
+    """
+    days = archive_after_days()
+    if days is None:
+        return []
+    limit = _iso(datetime.now(timezone.utc) - timedelta(days=days))
+    items = load_all()
+    steps: dict[str, list[dict]] = {}
+    for item in items.values():
+        if item["parent"] in items:
+            steps.setdefault(item["parent"], []).append(item)
+    moved = []
+    for task in items.values():
+        family = [task, *steps.get(task["id"], [])]
+        if task["parent"] in items or any(i["status"] != "done" for i in family):
+            continue
+        if task["done_at"] and task["done_at"] < limit:
+            for item in family:
+                _move(item, archived=True)
+            moved += family
     return moved
 
 
@@ -374,8 +431,16 @@ def pane_id(raw: str) -> str:
     return raw.split(":")[-1].upper()
 
 
+def in_paseo() -> bool:
+    """Paseo names the agent in the environment of every process the agent starts."""
+    return bool(os.environ.get("PASEO_AGENT_ID"))
+
+
 def current_pane() -> str | None:
-    """The iTerm2 pane this process runs in, or None when that cannot be trusted."""
+    """The pane this process runs in, a Paseo agent or an iTerm2 session, or None when
+    that cannot be trusted."""
+    if in_paseo():  # before iTerm2's variable: the daemon may have been started from a terminal
+        return pane_id(os.environ["PASEO_AGENT_ID"])
     if os.environ.get("TMUX"):
         return None  # inside tmux the variable names whichever pane started the server
     raw = os.environ.get("ITERM_SESSION_ID") or os.environ.get("TERM_SESSION_ID")
