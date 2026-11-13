@@ -5,7 +5,7 @@ Layout under VIBEBOARD_HOME (default ~/.iterm-vibe-board):
     projects/<key>/project.json       the project's real path
     projects/<key>/items/<id>.json    live items
     projects/<key>/archive/<id>.json  archived items
-    panes/<pane>.json                 which session runs in which iTerm2 pane
+    panes/<pane>.json                 which session runs in which iTerm2 pane or Paseo agent
     config.json                       the user's settings, absent until one is set
 
 <key> is the project path encoded the way Claude Code names ~/.claude/projects/.
@@ -309,26 +309,35 @@ def _move(item: dict, archived: bool) -> None:
     os.replace(_item_path(item, archived=not archived), dst)
 
 
+def _family(item: dict, items: dict) -> list[dict]:
+    """An item and everything under it, the item first."""
+    family = [item]
+    for member in family:
+        family += [i for i in items.values() if i["parent"] == member["id"]]
+    return family
+
+
 def archive(item_id: str, restore: bool = False) -> list[dict]:
     """Move an item and everything under it out of the live board, or back into it.
 
     Returns the items moved, the one asked for first.
     """
     items = load_all(archived=restore)
-    moved = []
-    todo = [items[item_id]]
-    while todo:
-        item = todo.pop(0)
+    moved = _family(items[item_id], items)
+    for item in moved:
         _move(item, archived=not restore)
-        moved.append(item)
-        todo += [i for i in items.values() if i["parent"] == item["id"]]
     return moved
 
 
 def config() -> dict:
     """What the user has set, in config.json: status labels, how long finished tasks stay."""
     path = home() / "config.json"
-    return _read_json(path) if path.is_file() else {}
+    if not path.is_file():
+        return {}
+    try:
+        return _read_json(path)
+    except ValueError as e:  # written by hand: say which file does not parse
+        raise ValueError(f"config.json: {e}") from e
 
 
 def archive_after_days() -> int | None:
@@ -354,16 +363,12 @@ def archive_finished() -> list[dict]:
         return []
     limit = _iso(datetime.now(timezone.utc) - timedelta(days=days))
     items = load_all()
-    steps: dict[str, list[dict]] = {}
-    for item in items.values():
-        if item["parent"] in items:
-            steps.setdefault(item["parent"], []).append(item)
     moved = []
     for task in items.values():
-        family = [task, *steps.get(task["id"], [])]
-        if task["parent"] in items or any(i["status"] != "done" for i in family):
+        if task["parent"] in items or not task["done_at"] or task["done_at"] >= limit:
             continue
-        if task["done_at"] and task["done_at"] < limit:
+        family = _family(task, items)
+        if all(item["status"] == "done" for item in family):
             for item in family:
                 _move(item, archived=True)
             moved += family

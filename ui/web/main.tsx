@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { Board } from "../client/board/Board";
 import { DEFAULT_PREFS } from "../client/board/host";
 import type { Host, Prefs } from "../client/board/host";
+import { callBoard, unwrap } from "../shared/http";
 import { Icon } from "./icons";
 
 const TOKEN = new URLSearchParams(location.search).get("token") || "";
@@ -11,25 +12,13 @@ const PREFS = "vibeboard.prefs";
 let assets: number | null = null; // version of the page's own files, as first reported
 
 async function request(method: string, path: string, body?: unknown): Promise<unknown> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-  try {
-    const response = await fetch(path, {
-      method,
-      headers: { "Content-Type": "application/json", "X-Vibeboard-Token": TOKEN },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || response.statusText);
-    if (path === "/api/version") {
-      if (assets !== null && data.assets !== assets) location.reload(); // the page's files changed
-      assets = data.assets;
-    }
-    return data;
-  } finally {
-    clearTimeout(timeout);
+  const data = unwrap(await callBoard(path, TOKEN, method, body), `${method} ${path}`);
+  if (path === "/api/version") {
+    const now = (data as { assets: number }).assets;
+    if (assets !== null && now !== assets) location.reload(); // the page's files changed
+    assets = now;
   }
+  return data;
 }
 
 const saved = localStorage.getItem(PREFS);
@@ -40,7 +29,6 @@ const host: Host = {
     foreground: "var(--fg)",
     foregroundMuted: "var(--muted)",
     surface0: "var(--bg)",
-    surface1: "var(--card)",
     surface2: "var(--control)",
     border: "var(--line)",
     accent: "var(--accent)",

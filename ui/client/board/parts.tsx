@@ -11,7 +11,7 @@ import type { Model } from "./model";
 export interface Ui {
   tab: Tab;
   open: Record<string, boolean>;
-  showDone: Record<string, boolean>; // "root:scope" or "tab:task": that level's done items are unfolded
+  showDone: Record<string, boolean>; // "root:scope" or doneStepsKey(): that level's done items are unfolded
   filter: string; // Global only: "" | "project:<path>" | "who:<session>"
   selected: string | null; // shown in the inspector
   editing: boolean; // the inspector shows controls instead of text
@@ -32,6 +32,9 @@ export interface Ctx {
   jumpToDriver(item: Item): void;
   copyTitle(item: Item): void;
 }
+
+/** Where Ui.showDone keeps the fold of a task's finished steps: the list and the inspector share it. */
+export const doneStepsKey = (ui: Ui, task: Item) => ui.tab + ":" + task.id;
 
 export const BoardContext = createContext<Ctx | null>(null);
 
@@ -87,16 +90,11 @@ export function Icon(props: { name: IconName; size?: number; color?: string }) {
   return <host.Icon name={props.name} size={props.size ?? 12} color={props.color ?? c.foregroundMuted} />;
 }
 
-function StatusIcon({ item, size }: { item: Item; size?: number }) {
-  const { c, m } = useBoard();
-  const status = m.shownStatus(item);
-  return <Icon name={STATUS_ICON[status]} size={size ?? 13} color={statusColor(c, status)} />;
-}
-
 /** The status icon as a checkbox: a press completes the item, or reopens a done one. */
 export function Complete({ item, size, style }: { item: Item; size?: number; style?: StyleProp<ViewStyle> }) {
-  const { patch } = useBoard();
+  const { c, m, patch } = useBoard();
   const done = item.status === "done";
+  const status = m.shownStatus(item);
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -105,7 +103,19 @@ export function Complete({ item, size, style }: { item: Item; size?: number; sty
       onPress={() => patch(item.id, { status: done ? "todo" : "done" })}
       style={style}
     >
-      <StatusIcon item={item} size={size} />
+      <Icon name={STATUS_ICON[status]} size={size ?? 13} color={statusColor(c, status)} />
+    </Pressable>
+  );
+}
+
+/** Words to press, in the accent colour. */
+export function Link(props: { size?: number; onPress: () => void; style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  const { c } = useBoard();
+  return (
+    <Pressable accessibilityRole="button" onPress={props.onPress} style={props.style}>
+      <T size={props.size} color={c.accent}>
+        {props.children}
+      </T>
     </Pressable>
   );
 }
@@ -254,7 +264,6 @@ export function Field(props: {
   onCommit: (value: string) => void;
   multiline?: boolean;
   placeholder?: string;
-  focus?: boolean;
 }) {
   const { c } = useBoard();
   const [draft, setDraft] = useState(props.value);
@@ -270,7 +279,6 @@ export function Field(props: {
     <TextInput
       ref={input}
       value={draft}
-      autoFocus={props.focus}
       multiline={props.multiline}
       numberOfLines={props.multiline ? Math.min(8, Math.max(3, draft.split("\n").length + 1)) : undefined}
       placeholder={props.placeholder}

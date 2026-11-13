@@ -3,7 +3,7 @@
 import type { BoardData, Host, Item, Pane, Status, Tab } from "./host";
 
 /** A project sees its own items and those filed under its sub-directories. */
-export function within(path: string, project: string): boolean {
+function within(path: string, project: string): boolean {
   return path === project || path.startsWith(project.replace(/\/+$/, "") + "/");
 }
 

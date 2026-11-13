@@ -1,6 +1,7 @@
 import json
 import subprocess
 import threading
+import time
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -120,67 +121,101 @@ def test_paseo_agents_are_listed_once_one_is_on_the_board(board_server, monkeypa
     assert panes["ITERM"]["alive"] is True
 
 
-def test_jump_refuses_a_paseo_agent(tmp_path, monkeypatch):
+def test_panels_asking_at_once_share_one_listing(board_server, monkeypatch):
+    asked = []
+
+    def listing(command, **kwargs):
+        asked.append(command[0])
+        time.sleep(0.2)  # long enough for the other panels to ask as well
+        return subprocess.CompletedProcess(command, 0, stdout="[]")
+
+    monkeypatch.setattr(server.subprocess, "run", listing)
+    panels = [threading.Thread(target=board_server.pane_names) for _ in range(5)]
+    for panel in panels:
+        panel.start()
+    for panel in panels:
+        panel.join()
+    assert asked == [server.IT2]
+
+
+@pytest.fixture
+def live(tmp_path, monkeypatch):
+    """A listening server on an empty store, and a way to call its API."""
     monkeypatch.setenv("VIBEBOARD_HOME", str(tmp_path))
+    board = server.serve(port=0, token="test")
+    threading.Thread(target=board.serve_forever, daemon=True).start()
+
+    def call(method, path, body=None):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{board.server_port}{path}",
+            data=None if body is None else json.dumps(body).encode(),
+            headers={"X-Vibeboard-Token": "test"},
+            method=method,
+        )
+        return json.load(urllib.request.urlopen(request))
+
+    yield board, call
+    board.shutdown()
+    board.server_close()
+
+
+def test_jump_refuses_a_paseo_agent(live, monkeypatch):
+    _, call = live
     store.set_pane("AGENT-1", host=store.PASEO, session="b", project="/example")
     focused = []
     monkeypatch.setattr(server.subprocess, "run", lambda command, **kwargs: focused.append(command))
-    board = server.serve(port=0, token="test")
-    threading.Thread(target=board.serve_forever, daemon=True).start()
-    try:
-
-        def jump(pane):
-            return urllib.request.urlopen(
-                urllib.request.Request(
-                    f"http://127.0.0.1:{board.server_port}/api/jump",
-                    data=json.dumps({"pane": pane}).encode(),
-                    headers={"X-Vibeboard-Token": "test"},
-                )
-            )
-
-        with pytest.raises(urllib.error.HTTPError) as refused:
-            jump("agent-1")
-        assert refused.value.code == 400
-        assert focused == []
-        assert jump("iterm").status == 200
-        assert focused == [[server.IT2, "session", "focus", "ITERM"]]
-    finally:
-        board.shutdown()
-        board.server_close()
+    with pytest.raises(urllib.error.HTTPError) as refused:
+        call("POST", "/api/jump", {"pane": "agent-1"})
+    assert refused.value.code == 400
+    assert focused == []
+    assert call("POST", "/api/jump", {"pane": "iterm"}) == {"ok": True}
+    assert focused == [[server.IT2, "session", "focus", "ITERM"]]
 
 
-def test_the_archive_setting_is_read_and_changed_over_the_api(tmp_path, monkeypatch):
-    monkeypatch.setenv("VIBEBOARD_HOME", str(tmp_path))
+def test_the_archive_setting_is_read_and_changed_over_the_api(live, tmp_path, monkeypatch):
+    board, call = live
     monkeypatch.setattr(server.BoardServer, "pane_names", lambda self: {})
     (tmp_path / "config.json").write_text(json.dumps({"labels": {"todo": "Next"}}))
-    board = server.serve(port=0, token="test")
-    threading.Thread(target=board.serve_forever, daemon=True).start()
-    try:
+    assert call("GET", "/api/board")["settings"] == {"archive_after_days": 7}
+    before = call("GET", "/api/version")["version"]
+    call("PATCH", "/api/settings", {"archive_after_days": 30})
+    after = call("GET", "/api/board")
+    assert after["settings"] == {"archive_after_days": 30}
+    assert after["labels"]["todo"] == "Next"  # the other settings are kept
+    assert after["version"] != before  # other open panels learn of it
+    assert board.settings_changed.is_set()
+    call("PATCH", "/api/settings", {"archive_after_days": None})
+    assert store.archive_after_days() is None
+    for bad in ({"archive_after_days": 0}, {"archive_after_days": "7"}, {}, {"labels": {}}):
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            call("PATCH", "/api/settings", bad)
+        assert refused.value.code == 400
+    assert store.archive_after_days() is None
 
-        def call(method, path, body=None):
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{board.server_port}{path}",
-                data=None if body is None else json.dumps(body).encode(),
-                headers={"X-Vibeboard-Token": "test"},
-                method=method,
-            )
-            return json.load(urllib.request.urlopen(request))
 
-        assert call("GET", "/api/board")["settings"] == {"archive_after_days": 7}
-        before = call("GET", "/api/version")["version"]
-        call("PATCH", "/api/settings", {"archive_after_days": 30})
-        after = call("GET", "/api/board")
-        assert after["settings"] == {"archive_after_days": 30}
-        assert after["labels"]["todo"] == "Next"  # the other settings are kept
-        assert after["version"] != before  # other open panels learn of it
-        assert board.settings_changed.is_set()
-        call("PATCH", "/api/settings", {"archive_after_days": None})
-        assert store.archive_after_days() is None
-        for bad in ({"archive_after_days": 0}, {"archive_after_days": "7"}, {}, {"labels": {}}):
-            with pytest.raises(urllib.error.HTTPError) as refused:
-                call("PATCH", "/api/settings", bad)
-            assert refused.value.code == 400
-        assert store.archive_after_days() is None
-    finally:
-        board.shutdown()
-        board.server_close()
+def test_a_config_that_does_not_parse_is_named_and_does_not_stop_the_archiving(
+    live, tmp_path, monkeypatch, capsys
+):
+    board, call = live
+    monkeypatch.setattr(server.BoardServer, "pane_names", lambda self: {})
+    (tmp_path / "config.json").write_text("{not json")
+    for method, path, body in (
+        ("GET", "/api/board", None),
+        ("PATCH", "/api/settings", {"archive_after_days": 3}),
+    ):
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            call(method, path, body)
+        assert refused.value.code == 400
+        assert json.load(refused.value)["error"].startswith("config.json: ")
+
+    looks = []
+
+    def wait(seconds):
+        looks.append(seconds)
+        if len(looks) == 2:
+            raise SystemExit  # two looks are enough to see that the loop goes on
+
+    monkeypatch.setattr(board.settings_changed, "wait", wait)
+    with pytest.raises(SystemExit):
+        board.keep_archiving()
+    assert capsys.readouterr().err.count("nothing archived: config.json: ") == 2

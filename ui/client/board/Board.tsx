@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { BoardData, Host, Item, Tab } from "./host";
 import { Inspector } from "./Inspector";
-import { List, reveal } from "./List";
+import { lasting, List, reveal } from "./List";
 import { model, projectPath } from "./model";
 import type { Model } from "./model";
-import { BoardContext, controlStyle, Icon, Select, T, Tint, useBoard } from "./parts";
+import { BoardContext, controlStyle, Icon, Link, Select, T, Tint, useBoard } from "./parts";
 import type { Ctx, Option, Ui } from "./parts";
 
 const UNDO_DEPTH = 20;
@@ -38,15 +38,18 @@ export function Board({ host }: { host: Host }) {
     host,
     polling: false,
     again: false, // a change landed while a poll was under way
-    down: false,
-    version: null as string | null,
+    version: null as string | null, // of the board that is shown; null: fetch it whatever the server says
     focus: undefined as string | null | undefined,
     at: null as Date | null,
   });
   sync.current.host = host;
 
   const notice = (text: string) => setMessage({ text, error: false });
-  const showError = (e: unknown) => setMessage({ text: e instanceof Error ? e.message : String(e), error: true });
+  const showError = (e: unknown) => {
+    const text = e instanceof Error ? e.message : String(e);
+    // While the server is away the same failure comes back every second: that is no news.
+    setMessage((now) => (now.error && now.text === text ? now : { text, error: true }));
+  };
 
   // `changed`: something was just written, so a poll already under way may have missed it.
   async function poll(changed = false) {
@@ -58,17 +61,19 @@ export function Board({ host }: { host: Host }) {
     s.polling = true;
     try {
       const { version, focus } = (await s.host.request("GET", "/api/version")) as { version: string; focus: string | null };
-      if (s.down || version !== s.version || focus !== s.focus) {
+      if (version !== s.version) {
         setBoard((await s.host.request("GET", "/api/board")) as BoardData);
         s.version = version;
-        s.focus = focus;
         setMessage((now) => (now.error ? { text: "", error: false } : now));
+      } else if (focus !== s.focus) {
+        // Only the pane being looked at changed: nothing to fetch.
+        setBoard((now) => now && { ...now, focus: { pane: focus } });
       }
-      s.down = false;
+      s.focus = focus;
       s.at = new Date();
       setDown(false);
     } catch (e) {
-      s.down = true;
+      s.version = null;
       setDown(true);
       showError(e);
     } finally {
@@ -86,27 +91,39 @@ export function Board({ host }: { host: Host }) {
     return () => clearInterval(timer);
   }, []);
 
+  const m = useMemo(() => board && model(board, host), [board, host.beside, host.project]);
+  const filters = useMemo(() => (m ? filterOptions(m) : []), [m]);
+
   const remembered = useRef(false);
   useEffect(() => {
-    if (remembered.current) host.savePrefs({ tab: ui.tab, open: ui.open });
+    if (remembered.current) host.savePrefs({ tab: ui.tab, open: m ? lasting(ui.open, m) : ui.open });
     remembered.current = true;
   }, [ui.tab, ui.open]);
 
-  const m = useMemo(() => board && model(board, host), [board, host.beside, host.project]);
-
-  function change(method: "POST" | "PATCH", path: string, body?: unknown): Promise<unknown> {
-    if (sync.current.down) return Promise.reject(new Error("看板已断线，请等待重新连接后再修改任务"));
-    return host.request(method, path, body);
+  // Every change goes through here: refused while the server is away, followed by a
+  // refresh, and a failure is shown rather than thrown. `done` gets the server's reply.
+  // Resolves to whether the change went through.
+  async function write(method: "POST" | "PATCH", path: string, body?: unknown, done?: (reply: unknown) => void) {
+    try {
+      if (down) throw new Error("看板已断线，请等待重新连接后再修改任务");
+      const reply = await host.request(method, path, body);
+      done?.(reply);
+    } catch (e) {
+      showError(e);
+      return false;
+    }
+    await poll(true);
+    return true;
   }
 
   function remember(undo: Undo) {
     setUndos((stack) => [...stack, undo].slice(-UNDO_DEPTH));
   }
 
-  async function patch(id: string, fields: Partial<Item>, undoable = true) {
+  function patch(id: string, fields: Partial<Item>, undoable = true) {
     const before = m!.byId[id];
-    try {
-      const item = (await change("PATCH", "/api/items/" + id, fields)) as Item;
+    return write("PATCH", "/api/items/" + id, fields, (reply) => {
+      const item = reply as Item;
       // Show it at once; the refresh that follows brings whatever else the change touched.
       setBoard((now) => now && { ...now, items: now.items.map((i) => (i.id === id ? item : i)) });
       if (undoable && before) {
@@ -115,70 +132,49 @@ export function Board({ host }: { host: Host }) {
         remember({ id, fields: previous, title: before.title });
         notice(`Changed “${before.title}”`);
       }
-      await poll(true);
-    } catch (e) {
-      showError(e);
-    }
+    });
   }
 
   // Delete is archive: the files move aside, and Undo brings them back.
-  async function remove(item: Item) {
-    try {
-      const ids = (await change("POST", `/api/items/${item.id}/archive`)) as string[];
+  function remove(item: Item) {
+    return write("POST", `/api/items/${item.id}/archive`, undefined, (reply) => {
+      const ids = reply as string[];
       remember({ id: item.id, restore: true, title: item.title });
       setUi((now) => (now.selected === item.id ? { ...now, selected: null, editing: false } : now));
       notice(`Deleted “${item.title}”` + (ids.length > 1 ? ` and ${ids.length - 1} steps` : "") + " — Undo brings it back");
-      await poll(true);
-    } catch (e) {
-      showError(e);
-    }
+    });
   }
 
   async function undo() {
     const last = undos[undos.length - 1];
     if (!last) return;
     setUndos((stack) => stack.slice(0, -1));
-    if ("restore" in last) {
-      try {
-        await change("POST", `/api/items/${last.id}/restore`);
-        await poll(true);
-        notice(`Restored “${last.title}”`);
-      } catch (e) {
-        showError(e);
-      }
-      return;
-    }
-    await patch(last.id, last.fields, false);
-    notice(`Undid the change to “${last.title}”`);
+    const restore = "restore" in last;
+    const went = restore ? await write("POST", `/api/items/${last.id}/restore`) : await patch(last.id, last.fields, false);
+    if (went) notice(restore ? `Restored “${last.title}”` : `Undid the change to “${last.title}”`);
+    else remember(last); // refused, or lost on the way: the reason stays shown and it can be tried again
   }
 
-  async function add(title: string, project: string) {
+  function add(title: string, project: string) {
     const parent = ui.addParent;
-    try {
-      await change("POST", "/api/items", {
-        title,
-        project,
-        parent,
-        origin: "plan",
-        created_by: board!.me,
-        driver: ui.tab === "session" ? m!.focus.sessions[0] : null, // the newest session here
-      });
+    const fields = {
+      title,
+      project,
+      parent,
+      origin: "plan",
+      created_by: board!.me,
+      driver: ui.tab === "session" ? m!.focus.sessions[0] : null, // the newest session here
+    };
+    return write("POST", "/api/items", fields, () => {
       if (parent) set((now) => reveal(now, m!, m!.byId[parent], true)); // show what was just added
       notice(`Added “${title}”`);
-      await poll(true);
-    } catch (e) {
-      showError(e);
-    }
+    });
   }
 
-  async function archiveAfter(days: number | null) {
-    try {
-      await change("PATCH", "/api/settings", { archive_after_days: days });
-      notice(days === null ? "Finished tasks stay on the board" : `Finished tasks are archived after ${days} ${days === 1 ? "day" : "days"}`);
-      await poll(true);
-    } catch (e) {
-      showError(e);
-    }
+  function archiveAfter(days: number | null) {
+    return write("PATCH", "/api/settings", { archive_after_days: days }, () =>
+      notice(days === null ? "Finished tasks stay on the board" : `Finished tasks are archived after ${days} ${days === 1 ? "day" : "days"}`),
+    );
   }
 
   const set: Ctx["set"] = (changeOf) => setUi((now) => ({ ...now, ...changeOf(now) }));
@@ -233,7 +229,7 @@ export function Board({ host }: { host: Host }) {
   }
 
   // What the remembered state points at may be gone.
-  const filter = filterOptions(m).some((o) => o.value === ui.filter) ? ui.filter : "";
+  const filter = filters.some((o) => o.value === ui.filter) ? ui.filter : "";
   const items = m.scopeItems(ui.tab, filter);
   const selected = items.some((i) => i.id === ui.selected) ? ui.selected : null;
   const shown: Ui = { ...ui, filter, selected, editing: Boolean(selected) && ui.editing };
@@ -252,7 +248,7 @@ export function Board({ host }: { host: Host }) {
             </T>
           </View>
         )}
-        <Header canAdd={canAdd && !down} onArchiveAfter={archiveAfter} />
+        <Header canAdd={canAdd && !down} filters={filters} onArchiveAfter={archiveAfter} />
         <View style={{ flex: 1, pointerEvents: down ? "none" : "auto" }}>
           {ui.adding && canAdd && <AddForm onAdd={add} />}
           <ScrollView style={{ flex: 1, opacity: down ? 0.5 : 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
@@ -264,11 +260,7 @@ export function Board({ host }: { host: Host }) {
               <T lines={1} color={message.error ? c.statusDanger : c.foregroundMuted} style={{ flex: 1 }}>
                 {message.text}
               </T>
-              {undos.length > 0 && (
-                <Pressable accessibilityRole="button" onPress={undo}>
-                  <T color={c.accent}>Undo</T>
-                </Pressable>
-              )}
+              {undos.length > 0 && <Link onPress={undo}>Undo</Link>}
             </View>
           )}
         </View>
@@ -282,13 +274,15 @@ function filterOptions(m: Model): Option[] {
   for (const p of Object.values(m.board.projects).sort((x, y) => x.name.localeCompare(y.name))) {
     options.push({ value: "project:" + p.path, label: `${p.name} — ${projectPath(p.path)}`, group: "Projects" });
   }
-  const panes = Object.values(m.board.panes).filter((p) => p.session);
-  panes.sort((x, y) => Number(y.alive) - Number(x.alive) || m.whoName(x.session!).localeCompare(m.whoName(y.session!)));
+  const sessions = Object.values(m.board.panes)
+    .filter((p) => p.session)
+    .map((p) => ({ id: p.session!, alive: p.alive, name: m.whoName(p.session!) }))
+    .sort((x, y) => Number(y.alive) - Number(x.alive) || x.name.localeCompare(y.name));
   const listed = new Set<string>();
-  for (const p of panes) {
-    if (listed.has(p.session!)) continue; // a resumed session leaves several pane records
-    listed.add(p.session!);
-    options.push({ value: "who:" + p.session, label: "@" + m.whoName(p.session!) + (p.alive ? "" : " (gone)"), group: "Sessions" });
+  for (const s of sessions) {
+    if (listed.has(s.id)) continue; // a resumed session leaves several pane records
+    listed.add(s.id);
+    options.push({ value: "who:" + s.id, label: "@" + s.name + (s.alive ? "" : " (gone)"), group: "Sessions" });
   }
   return options;
 }
@@ -298,7 +292,8 @@ function archiveChoices(days: number | null): number[] {
   return days === null || ARCHIVE_AFTER.includes(days) ? ARCHIVE_AFTER : [...ARCHIVE_AFTER, days].sort((x, y) => x - y);
 }
 
-function Header({ canAdd, onArchiveAfter }: { canAdd: boolean; onArchiveAfter: (days: number | null) => void }) {
+function Header(props: { canAdd: boolean; filters: Option[]; onArchiveAfter: (days: number | null) => void }) {
+  const { canAdd, filters, onArchiveAfter } = props;
   const { c, m, ui, set } = useBoard();
   const [settings, setSettings] = useState(false);
   const f = m.focus;
@@ -345,7 +340,7 @@ function Header({ canAdd, onArchiveAfter }: { canAdd: boolean; onArchiveAfter: (
           and can be narrowed to one project or one driver. */}
       <View style={{ flexDirection: "row", marginTop: 5, minHeight: 18 }}>
         {ui.tab === "global" && (
-          <Select value={ui.filter} options={filterOptions(m)} onChange={(filter) => set(() => ({ filter }))} />
+          <Select value={ui.filter} options={filters} onChange={(filter) => set(() => ({ filter }))} />
         )}
         {ui.tab === "project" && (
           <T size={12} lines={1} color={c.foregroundMuted}>

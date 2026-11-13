@@ -5,6 +5,7 @@ import { copyText, Icon } from "@getpaseo/plugin/client/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { z } from "zod";
+import { unwrap } from "../shared/http";
 import { boardRpc } from "../shared/rpc";
 import { Board } from "./board/Board";
 import { DEFAULT_PREFS } from "./board/host";
@@ -43,11 +44,7 @@ export function BoardPanel({ theme, navigation, workspaceId, tab }: PluginWorksp
   const beside = useCallback((pane: Pane) => Boolean(agents.data?.includes(pane.pane)), [agents.data]);
   const directory = useWorkspace(workspaceId, (workspace) => workspace.directory);
 
-  const request: Host["request"] = async (method, path, body) => {
-    const { ok, data } = await call({ method, path, body });
-    if (!ok) throw new Error((data as { error?: string }).error || `${method} ${path} failed`);
-    return data;
-  };
+  const request: Host["request"] = async (method, path, body) => unwrap(await call({ method, path, body }), `${method} ${path}`);
   const host: Host = {
     request,
     colors: theme.colors,

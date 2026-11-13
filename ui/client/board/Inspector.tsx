@@ -3,8 +3,8 @@
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import type { Item, Status } from "./host";
-import { projectPath, scopedChildren, when } from "./model";
-import { Complete, DoneFold, DriverChip, Field, Icon, Select, statusColor, T, Tint, useBoard } from "./parts";
+import { projectPath, when } from "./model";
+import { Complete, DoneFold, doneStepsKey, DriverChip, Field, Icon, Link, Select, statusColor, T, Tint, useBoard } from "./parts";
 
 export function Inspector() {
   const { c, m, ui, set, select, remove, copyTitle, jumpTo } = useBoard();
@@ -26,11 +26,9 @@ export function Inspector() {
           <T size={12} weight="700" selectable style={{ flex: 1 }}>
             {item.title}
           </T>
-          <Pressable accessibilityRole="button" onPress={() => select(item.id, !ui.editing)}>
-            <T size={12} color={c.accent}>
-              {ui.editing ? "Done" : "Edit"}
-            </T>
-          </Pressable>
+          <Link size={12} onPress={() => select(item.id, !ui.editing)}>
+            {ui.editing ? "Done" : "Edit"}
+          </Link>
           <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => select(null)}>
             <Icon name="X" size={14} />
           </Pressable>
@@ -40,19 +38,15 @@ export function Inspector() {
         </T>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
           {actions.map(([label, run]) => (
-            <Pressable key={label} accessibilityRole="button" onPress={run}>
-              <T size={10} color={c.accent}>
-                {label}
-              </T>
-            </Pressable>
+            <Link key={label} size={10} onPress={run}>
+              {label}
+            </Link>
           ))}
         </View>
         {parent && (
-          <Pressable accessibilityRole="button" onPress={() => jumpTo(parent)}>
-            <T size={10} color={c.accent}>
-              {"‹ " + parent.title}
-            </T>
-          </Pressable>
+          <Link size={10} onPress={() => jumpTo(parent)}>
+            {"‹ " + parent.title}
+          </Link>
         )}
         {ui.editing ? <Editor key={item.id} item={item} /> : <Details item={item} />}
       </ScrollView>
@@ -174,8 +168,8 @@ function Dependency({ dep }: { dep: Item }) {
 // The steps of the selected task and what it waits for.
 function Links({ item }: { item: Item }) {
   const { c, m, ui, set, select } = useBoard();
-  const { done, active } = m.levelItems(scopedChildren(m.scopeItems(ui.tab, ui.filter))[item.id] || []);
-  const key = ui.tab + ":" + item.id;
+  const { done, active } = m.levelItems(m.scopeItems(ui.tab, ui.filter).filter((i) => i.parent === item.id));
+  const key = doneStepsKey(ui, item);
   const open = Boolean(ui.showDone[key]);
   const parent = item.parent ? m.byId[item.parent] : null;
   const known = (ids: string[]) => ids.map((id) => m.byId[id]).filter(Boolean);

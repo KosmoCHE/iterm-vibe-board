@@ -13,7 +13,7 @@ import type { ViewStyle } from "react-native";
 import type { Item } from "./host";
 import { graphFlows, graphLayers, scopedChildren } from "./model";
 import type { Model } from "./model";
-import { Complete, Icon, T, Tint, useBoard, useItemPress } from "./parts";
+import { Complete, doneStepsKey, Icon, Link, T, Tint, useBoard, useItemPress } from "./parts";
 import type { Ui } from "./parts";
 
 // --- what to draw ---------------------------------------------------------------
@@ -27,10 +27,9 @@ interface Row {
   key: string;
   item?: Item; // absent on a fold row
   fold?: Fold;
-  step: boolean;
-  parent?: string; // a step's task row
-  steps?: { done: number; total: number; open: boolean }; // a task that has steps
-  outside: boolean; // waits for something the current scope does not show
+  parent?: string; // on a step, and on the fold of a task's done steps: the task's row
+  steps?: { key: string; done: number; total: number; open: boolean }; // a task that has steps; key in Ui.open
+  outside?: boolean; // waits for something the current scope does not show
 }
 interface Edge {
   source: string; // row keys
@@ -44,15 +43,37 @@ function scopeKey(ui: Ui, m: Model): string {
   return ui.tab + ":" + (ui.tab === "global" ? ui.filter : (ui.tab === "project" ? f.projects : f.sessions).join("|"));
 }
 
+// Where the folds are kept. Ui.open: a task's steps, per scope. Ui.showDone: a level's
+// finished items, the top level here and a task's steps under parts.doneStepsKey.
+const stepsKey = (scope: string, task: Item) => scope + ":" + task.id;
+const doneKey = (scope: string) => "root:" + scope;
+
+/** Ui.open with the steps under these keys folded or shown. Steps show until folded, so only folds are kept. */
+function folded(open: Ui["open"], keys: string[], fold: boolean): Ui["open"] {
+  const next = { ...open };
+  for (const key of keys) {
+    if (fold) next[key] = false;
+    else delete next[key];
+  }
+  return next;
+}
+
+/** Ui.open as it is worth remembering: without the folds of tasks that have left the board. */
+export function lasting(open: Ui["open"], m: Model): Ui["open"] {
+  // A key ends in its task's id: see stepsKey.
+  return Object.fromEntries(Object.entries(open).filter(([key]) => key.slice(key.lastIndexOf(":") + 1) in m.byId));
+}
+
 /** The folds to open so that an item shows. `openTask` also unfolds a task's own steps. */
 export function reveal(ui: Ui, m: Model, item: Item, openTask: boolean): Partial<Ui> {
   const task = m.scopeItems(ui.tab, ui.filter).find((i) => i.id === item.parent) || item;
   const scope = scopeKey(ui, m);
   const out: Partial<Ui> = {};
-  if (task !== item || openTask) out.open = { ...ui.open, [scope + ":" + task.id]: true };
+  const steps = stepsKey(scope, task);
+  if ((task !== item || openTask) && ui.open[steps] === false) out.open = folded(ui.open, [steps], false);
   const showDone = { ...ui.showDone };
-  if (task.status === "done") showDone["root:" + scope] = true;
-  if (task !== item && item.status === "done") showDone[ui.tab + ":" + task.id] = true;
+  if (task.status === "done") showDone[doneKey(scope)] = true;
+  if (task !== item && item.status === "done") showDone[doneStepsKey(ui, task)] = true;
   return { ...out, showDone };
 }
 
@@ -60,7 +81,7 @@ function plan(items: Item[], ui: Ui, m: Model) {
   const kids = scopedChildren(items);
   const scope = scopeKey(ui, m);
   const { done, active } = m.levelItems(kids.root || []);
-  const rootOpen = Boolean(ui.showDone["root:" + scope]);
+  const rootOpen = Boolean(ui.showDone[doneKey(scope)]);
   const tasks = rootOpen ? [...done, ...active] : active;
   const loop = graphLayers(items, new Map(items.map((item) => [item.id, new Set(item.depends_on)]))).unresolved.length > 0;
 
@@ -79,7 +100,7 @@ function plan(items: Item[], ui: Ui, m: Model) {
   const rows: Row[] = [];
   const shownAt = new Map<string, string>(); // item id → key of the row that shows it
   if (done.length) {
-    rows.push({ key: "f:root", fold: { key: "root:" + scope, count: done.length, open: rootOpen }, step: false, outside: false });
+    rows.push({ key: "f:root", fold: { key: doneKey(scope), count: done.length, open: rootOpen } });
     if (!rootOpen) for (const item of done) shownAt.set(item.id, "f:root");
   }
   let anyOpen = false;
@@ -87,27 +108,26 @@ function plan(items: Item[], ui: Ui, m: Model) {
   for (const { layers, unresolved } of graphFlows(tasks, taskDeps)) {
     for (const task of [...layers.flat(), ...unresolved]) {
       const steps = kids[task.id] || [];
-      const open = steps.length > 0 && ui.open[scope + ":" + task.id] !== false; // rows are small: open until folded
+      const key = stepsKey(scope, task);
+      const open = steps.length > 0 && ui.open[key] !== false; // rows are small: open until folded
       anyOpen = anyOpen || open;
       shownAt.set(task.id, "n:" + task.id);
       rows.push({
         key: "n:" + task.id,
         item: task,
-        step: false,
-        steps: steps.length ? { done: steps.filter((s) => s.status === "done").length, total: steps.length, open } : undefined,
-        outside: false,
+        steps: steps.length ? { key, done: steps.filter((s) => s.status === "done").length, total: steps.length, open } : undefined,
       });
       if (!open) continue;
       const inside = m.levelItems(steps);
-      const key = ui.tab + ":" + task.id;
-      const foldOpen = Boolean(ui.showDone[key]);
+      const doneFold = doneStepsKey(ui, task);
+      const foldOpen = Boolean(ui.showDone[doneFold]);
       if (inside.done.length) {
-        rows.push({ key: "f:" + task.id, fold: { key, count: inside.done.length, open: foldOpen }, step: true, parent: "n:" + task.id, outside: false });
+        rows.push({ key: "f:" + task.id, fold: { key: doneFold, count: inside.done.length, open: foldOpen }, parent: "n:" + task.id });
         if (!foldOpen) for (const step of inside.done) shownAt.set(step.id, "f:" + task.id);
       }
       for (const step of foldOpen ? [...inside.done, ...inside.active] : inside.active) {
         shownAt.set(step.id, "n:" + step.id);
-        rows.push({ key: "n:" + step.id, item: step, step: true, parent: "n:" + task.id, outside: false });
+        rows.push({ key: "n:" + step.id, item: step, parent: "n:" + task.id });
       }
     }
   }
@@ -147,19 +167,17 @@ function trace(p: Plan, items: Item[], m: Model, selected: string | null) {
   const roots = new Set(selected ? [selected] : []);
   // Selecting a task traces its visible scope's steps as well.
   if (selected) for (const item of items) if (item.parent === selected) roots.add(item.id);
-  const upstream = new Map<string, string[]>();
   const downstream = new Map<string, string[]>();
   for (const item of m.board.items) {
-    upstream.set(item.id, item.depends_on);
     for (const dep of item.depends_on) downstream.set(dep, [...(downstream.get(dep) || []), item.id]);
   }
-  const follow = (neighbors: Map<string, string[]>) => {
+  const follow = (neighbors: (id: string) => string[] | undefined) => {
     const ids = new Set(roots);
-    for (const id of ids) for (const next of neighbors.get(id) || []) ids.add(next);
+    for (const id of ids) for (const next of neighbors(id) || []) ids.add(next);
     return ids;
   };
-  const before = follow(upstream);
-  const after = follow(downstream);
+  const before = follow((id) => m.byId[id]?.depends_on); // a prerequisite may have left the board
+  const after = follow((id) => downstream.get(id));
   const related = new Set<string>();
   for (const id of [...before, ...after]) {
     const at = p.ends.get(id);
@@ -167,7 +185,7 @@ function trace(p: Plan, items: Item[], m: Model, selected: string | null) {
   }
   const onPath = (edge: Edge) =>
     edge.links.some(([from, to]) => (before.has(from) && before.has(to)) || (after.has(from) && after.has(to)));
-  return { active: Boolean(selected), related, onPath };
+  return { related, onPath };
 }
 
 // --- lanes ------------------------------------------------------------------------
@@ -187,10 +205,11 @@ type Paint = "tree" | "plain" | "dashed" | "lit" | "back";
  */
 function lanes(p: Plan, lit: (edge: Edge) => boolean) {
   const index = new Map(p.rows.map((row, n) => [row.key, n]));
+  const at = (key: string) => index.get(key)!; // every edge joins two rows
   const leaving = p.rows.map(() => [] as Edge[]);
   const back: Edge[] = []; // the prerequisite sits below: only loops and interleaved tasks do this
   for (const edge of p.edges) {
-    if (index.get(edge.source)! < index.get(edge.target)!) leaving[index.get(edge.source)!].push(edge);
+    if (at(edge.source) < at(edge.target)) leaving[at(edge.source)].push(edge);
     else back.push(edge);
   }
   const reserved: (string | null)[] = []; // lane → the row it leads to
@@ -213,8 +232,8 @@ function lanes(p: Plan, lit: (edge: Edge) => boolean) {
 
   const chained = new Set<string>(); // steps that follow another step of their task
   for (const edge of p.edges) {
-    const target = p.rows[index.get(edge.target)!];
-    if (target.parent && target.parent === p.rows[index.get(edge.source)!].parent) chained.add(edge.target);
+    const target = p.rows[at(edge.target)];
+    if (target.parent && target.parent === p.rows[at(edge.source)].parent) chained.add(edge.target);
   }
   let trunk: { key: string; row: number; col: number; last: number } | null = null;
   const endTrunk = () => {
@@ -222,7 +241,7 @@ function lanes(p: Plan, lit: (edge: Edge) => boolean) {
     if (reserved[trunk.col] === "trunk") reserved[trunk.col] = null;
     if (trunk.last > trunk.row) {
       draw(trunk.row, { kind: "line", lane: trunk.col, from: 0.5, to: 1, paint: "tree" });
-      for (let n = trunk.row + 1; n < trunk.last; n++) draw(n, { kind: "line", lane: trunk.col, from: 0, to: 1, paint: "tree" });
+      run(trunk.col, trunk.row, trunk.last, "tree");
       draw(trunk.last, { kind: "line", lane: trunk.col, from: 0, to: 0.5, paint: "tree" });
     }
     trunk = null;
@@ -239,14 +258,14 @@ function lanes(p: Plan, lit: (edge: Edge) => boolean) {
       trunk.last = n;
     }
     // The nearest dependent continues straight down; the others branch off to the side.
-    for (const edge of leaving[n].sort((a, b) => index.get(a.target)! - index.get(b.target)!)) {
+    for (const edge of leaving[n].sort((a, b) => at(a.target) - at(b.target))) {
       let lane = reserved.indexOf(edge.target);
       if (lane < 0) {
         lane = reserved[col] === null ? col : free();
         reserved[lane] = edge.target;
       }
       const paint: Paint = lit(edge) ? "lit" : edge.summary ? "dashed" : "plain";
-      const end = index.get(edge.target)!;
+      const end = at(edge.target);
       if (lane === col) draw(n, { kind: "line", lane, from: 0.5, to: 1, paint });
       else draw(n, { kind: "turn", col, lane, up: false, paint });
       run(lane, n, end, paint);
@@ -262,8 +281,8 @@ function lanes(p: Plan, lit: (edge: Edge) => boolean) {
   // Upward links each get a lane of their own, right of everything else.
   let width = Math.max(1, reserved.length);
   for (const edge of back) {
-    const top = index.get(edge.target)!;
-    const bottom = index.get(edge.source)!;
+    const top = at(edge.target);
+    const bottom = at(edge.source);
     const paint: Paint = lit(edge) ? "lit" : "back";
     draw(top, { kind: "turn", col: cols[top], lane: width, up: false, paint });
     run(width, top, bottom, paint);
@@ -285,7 +304,7 @@ export function List({ items }: { items: Item[] }) {
   const p = plan(items, ui, m);
   if (!p.rows.length) return <Empty />;
   const t = trace(p, items, m, ui.selected);
-  const rails = lanes(p, (edge) => t.active && t.onPath(edge));
+  const rails = lanes(p, t.onPath);
   const hasSteps = p.rows.some((row) => row.steps);
   return (
     <View style={{ paddingVertical: 8 }}>
@@ -299,21 +318,13 @@ export function List({ items }: { items: Item[] }) {
           </T>
         )}
         {hasSteps && (
-          <Pressable
-            accessibilityRole="button"
+          <Link
+            size={9}
             style={{ marginLeft: "auto" }}
-            onPress={() =>
-              set((now) => {
-                const open = { ...now.open };
-                for (const task of p.tasks) open[p.scope + ":" + task.id] = !p.anyOpen;
-                return { open };
-              })
-            }
+            onPress={() => set((now) => ({ open: folded(now.open, p.tasks.map((task) => stepsKey(p.scope, task)), p.anyOpen) }))}
           >
-            <T size={9} color={c.accent}>
-              {p.anyOpen ? "Collapse tasks" : "Expand tasks"}
-            </T>
-          </Pressable>
+            {p.anyOpen ? "Collapse tasks" : "Expand tasks"}
+          </Link>
         )}
       </View>
       {p.loop && (
@@ -322,9 +333,9 @@ export function List({ items }: { items: Item[] }) {
         </T>
       )}
       {p.rows.map((row, n) => {
-        const dim = t.active && !t.related.has(row.key);
+        const dim = ui.selected !== null && !t.related.has(row.key);
         return row.item ? (
-          <ItemRow key={row.key} row={row} item={row.item} rail={rails[n]} dim={dim} scope={p.scope} />
+          <ItemRow key={row.key} row={row} item={row.item} rail={rails[n]} dim={dim} />
         ) : (
           <FoldRow key={row.key} row={row} fold={row.fold!} rail={rails[n]} dim={dim} />
         );
@@ -410,25 +421,27 @@ function Rail({ rail, height, children }: { rail: RailOf; height: number; childr
 const ROW = 24;
 const TASK = 28;
 
-function ItemRow({ row, item, rail, dim, scope }: { row: Row; item: Item; rail: RailOf; dim: boolean; scope: string }) {
+function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf; dim: boolean }) {
   const { c, m, ui, set } = useBoard();
   const press = useItemPress(item);
   const done = item.status === "done";
   const quiet = done || item.status === "later" || m.blocked(item);
   const steps = row.steps;
+  const step = Boolean(row.parent);
+  const height = step ? ROW : TASK;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={item.title + ", " + m.board.labels[item.status]}
       onPress={press}
-      style={{ flexDirection: "row", alignItems: "center", height: row.step ? ROW : TASK, paddingRight: 8 }}
+      style={{ flexDirection: "row", alignItems: "center", height, paddingRight: 8 }}
     >
       {item.id === ui.selected && <Tint color={c.accent} opacity={0.16} />}
-      <Rail rail={rail} height={row.step ? ROW : TASK}>
+      <Rail rail={rail} height={height}>
         <Complete
           item={item}
-          size={row.step ? 11 : 13}
-          style={{ width: DOT, height: row.step ? ROW : TASK, alignItems: "center", justifyContent: "center", opacity: dim ? 0.4 : 1 }}
+          size={step ? 11 : 13}
+          style={{ width: DOT, height, alignItems: "center", justifyContent: "center", opacity: dim ? 0.4 : 1 }}
         />
       </Rail>
       <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5, opacity: dim ? 0.4 : 1 }}>
@@ -438,14 +451,14 @@ function ItemRow({ row, item, rail, dim, scope }: { row: Row; item: Item; rail: 
             accessibilityLabel={(steps.open ? "Collapse " : "Expand ") + item.title}
             accessibilityState={{ expanded: steps.open }}
             hitSlop={6}
-            onPress={() => set((now) => ({ open: { ...now.open, [scope + ":" + item.id]: !steps.open } }))}
+            onPress={() => set((now) => ({ open: folded(now.open, [steps.key], steps.open) }))}
           >
             <Icon name={steps.open ? "ChevronDown" : "ChevronRight"} size={12} />
           </Pressable>
         )}
         <T
-          size={row.step ? 11 : 12}
-          weight={row.step ? undefined : "600"}
+          size={step ? 11 : 12}
+          weight={step ? undefined : "600"}
           lines={1}
           color={quiet ? c.foregroundMuted : c.foreground}
           style={[{ flex: 1 }, done && { textDecorationLine: "line-through" }]}
@@ -464,7 +477,7 @@ function ItemRow({ row, item, rail, dim, scope }: { row: Row; item: Item; rail: 
             {`${steps.done}/${steps.total}`}
           </T>
         )}
-        {!row.step && ui.tab === "global" && (
+        {!step && ui.tab === "global" && (
           <T size={9} lines={1} color={c.foregroundMuted} style={{ maxWidth: 80 }}>
             {m.projectName(item.project)}
           </T>
@@ -486,7 +499,7 @@ function FoldRow({ row, fold, rail, dim }: { row: Row; fold: Fold; rail: RailOf;
       <Rail rail={rail} height={ROW}>
         <Icon name="Check" size={11} color={c.statusSuccess} />
       </Rail>
-      <T size={row.step ? 10 : 11} color={c.foregroundMuted}>{`${fold.open ? "Hide" : "Show"} ${fold.count} done`}</T>
+      <T size={row.parent ? 10 : 11} color={c.foregroundMuted}>{`${fold.open ? "Hide" : "Show"} ${fold.count} done`}</T>
     </Pressable>
   );
 }
