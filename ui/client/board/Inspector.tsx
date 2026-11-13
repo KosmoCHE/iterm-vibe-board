@@ -55,10 +55,10 @@ export function Inspector() {
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
-  const { c } = useBoard();
+  const { c, scaled } = useBoard();
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-      <T color={c.foregroundMuted} style={{ width: 62, textAlign: "right", paddingTop: 1 }}>
+      <T color={c.foregroundMuted} style={{ width: scaled(62), textAlign: "right", paddingTop: 1 }}>
         {label}
       </T>
       <View style={{ flex: 1, minWidth: 0, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 5 }}>{children}</View>
@@ -150,12 +150,12 @@ function Details({ item }: { item: Item }) {
 }
 
 function Dependency({ dep }: { dep: Item }) {
-  const { c, jumpTo } = useBoard();
+  const { c, jumpTo, scaled } = useBoard();
   const done = dep.status === "done";
   const color = done ? c.foregroundMuted : c.accent;
   return (
     <Pressable accessibilityRole="button" onPress={() => jumpTo(dep)} style={{ flexDirection: "row", alignItems: "flex-start", gap: 4, marginVertical: 2 }}>
-      <View style={{ height: 14, justifyContent: "center" }}>
+      <View style={{ height: scaled(14), justifyContent: "center" }}>
         <Icon name={done ? "Check" : "ArrowUpRight"} size={11} color={color} />
       </View>
       <T size={10} color={color} style={{ flex: 1 }}>

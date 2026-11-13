@@ -62,10 +62,13 @@ items are yours, agents are just the ones pushing them.
   not from the plan carries its `issue` or `added` mark.
 - **Finished tasks leave the board after a week.** A task that has been done
   for longer than the set number of days is archived with its steps, so the
-  board stays small and quick. The gear at the top right sets the number of
-  days, or never. The archive keeps everything, done times included:
-  `vibeboard list --archived` reads it and `vibeboard archive --restore <id>`
-  brings a task back.
+  board stays small and quick. The settings behind the gear at the top right
+  set the number of days, or never. The archive keeps everything, done times
+  included: `vibeboard list --archived` reads it and
+  `vibeboard archive --restore <id>` brings a task back.
+- **One setting sizes all the text.** The same settings hold the text size: one
+  percentage for every line, icon and control, shared by the iTerm2 panel and
+  the Paseo panels.
 - **You edit in the panel.** Press an item's dot to tick it off, press an item for details (adding a
   step, copying the title and deleting are there), press it twice to edit, `+`
   at the top right to add, Undo (⌘Z in iTerm2) to take a change back. Press a

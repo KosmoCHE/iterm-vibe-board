@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import type { BoardData, Host, Item, Tab } from "./host";
+import type { BoardData, Host, Item, Settings, Tab } from "./host";
 import { Inspector } from "./Inspector";
 import { lasting, List, reveal } from "./List";
 import { model, projectPath } from "./model";
 import type { Model } from "./model";
 import { BoardContext, controlStyle, Icon, Link, Select, T, Tint, useBoard } from "./parts";
 import type { Ctx, Option, Ui } from "./parts";
+import { SettingsDialog } from "./Settings";
 
 const UNDO_DEPTH = 20;
-const ARCHIVE_AFTER = [1, 3, 7, 14, 30, 90]; // days, offered in the settings
 const TABS: [Tab, string][] = [
   ["global", "Global"],
   ["project", "Project"],
@@ -30,6 +30,7 @@ export function Board({ host }: { host: Host }) {
     editing: false,
     adding: false,
     addParent: null,
+    settings: false,
   }));
   const [down, setDown] = useState(false); // the server is unreachable; what is shown is stale
   const [message, setMessage] = useState({ text: "", error: false });
@@ -171,10 +172,8 @@ export function Board({ host }: { host: Host }) {
     });
   }
 
-  function archiveAfter(days: number | null) {
-    return write("PATCH", "/api/settings", { archive_after_days: days }, () =>
-      notice(days === null ? "Finished tasks stay on the board" : `Finished tasks are archived after ${days} ${days === 1 ? "day" : "days"}`),
-    );
+  function changeSetting(change: Partial<Settings>, said: string) {
+    return write("PATCH", "/api/settings", change, () => notice(said));
   }
 
   const set: Ctx["set"] = (changeOf) => setUi((now) => ({ ...now, ...changeOf(now) }));
@@ -210,7 +209,8 @@ export function Board({ host }: { host: Host }) {
   commands.current = {
     undo,
     escape() {
-      if (ui.selected) select(ui.editing ? ui.selected : null);
+      if (ui.settings) set(() => ({ settings: false }));
+      else if (ui.selected) select(ui.editing ? ui.selected : null);
     },
   };
   useEffect(
@@ -233,7 +233,9 @@ export function Board({ host }: { host: Host }) {
   const items = m.scopeItems(ui.tab, filter);
   const selected = items.some((i) => i.id === ui.selected) ? ui.selected : null;
   const shown: Ui = { ...ui, filter, selected, editing: Boolean(selected) && ui.editing };
-  const ctx: Ctx = { host, c, m, ui: shown, set, patch, remove, select, jumpTo, jumpToDriver, copyTitle };
+  const scale = (board.settings?.text_size ?? 100) / 100; // a server from before the setting does not report it
+  const scaled = (n: number) => Math.round(n * scale);
+  const ctx: Ctx = { host, c, m, ui: shown, scaled, set, patch, remove, select, jumpTo, jumpToDriver, copyTitle };
   const canAdd = ui.tab === "global" ? Object.keys(board.projects).length > 0 : m.focus.projects.length > 0;
 
   return (
@@ -248,7 +250,7 @@ export function Board({ host }: { host: Host }) {
             </T>
           </View>
         )}
-        <Header canAdd={canAdd && !down} filters={filters} onArchiveAfter={archiveAfter} />
+        <Header canAdd={canAdd && !down} filters={filters} />
         <View style={{ flex: 1, pointerEvents: down ? "none" : "auto" }}>
           {ui.adding && canAdd && <AddForm onAdd={add} />}
           <ScrollView style={{ flex: 1, opacity: down ? 0.5 : 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
@@ -264,6 +266,7 @@ export function Board({ host }: { host: Host }) {
             </View>
           )}
         </View>
+        {ui.settings && board.settings && <SettingsDialog settings={board.settings} onChange={changeSetting} />}
       </View>
     </BoardContext.Provider>
   );
@@ -287,17 +290,9 @@ function filterOptions(m: Model): Option[] {
   return options;
 }
 
-/** The offered ages, plus what config.json holds when that is none of them. */
-function archiveChoices(days: number | null): number[] {
-  return days === null || ARCHIVE_AFTER.includes(days) ? ARCHIVE_AFTER : [...ARCHIVE_AFTER, days].sort((x, y) => x - y);
-}
-
-function Header(props: { canAdd: boolean; filters: Option[]; onArchiveAfter: (days: number | null) => void }) {
-  const { canAdd, filters, onArchiveAfter } = props;
+function Header({ canAdd, filters }: { canAdd: boolean; filters: Option[] }) {
   const { c, m, ui, set } = useBoard();
-  const [settings, setSettings] = useState(false);
   const f = m.focus;
-  const archive = m.board.settings;
   return (
     <View style={{ paddingTop: 6, paddingHorizontal: 8, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: c.border }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -325,14 +320,9 @@ function Header(props: { canAdd: boolean; filters: Option[]; onArchiveAfter: (da
         >
           <Icon name="Plus" size={15} />
         </Pressable>
-        {archive && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            accessibilityState={{ expanded: settings }}
-            onPress={() => setSettings(!settings)}
-          >
-            <Icon name="Settings" size={14} color={settings ? c.foreground : c.foregroundMuted} />
+        {m.board.settings && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => set(() => ({ settings: true }))}>
+            <Icon name="Settings" size={14} />
           </Pressable>
         )}
       </View>
@@ -353,25 +343,12 @@ function Header(props: { canAdd: boolean; filters: Option[]; onArchiveAfter: (da
           </T>
         )}
       </View>
-      {settings && archive && (
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: 5 }}>
-          {/* Level with the select's own text, also while its list is open. */}
-          <T color={c.foregroundMuted} style={{ marginTop: 4 }}>
-            Archive finished tasks after
-          </T>
-          <Select
-            value={archive.archive_after_days === null ? "" : String(archive.archive_after_days)}
-            options={[...archiveChoices(archive.archive_after_days).map((n) => ({ value: String(n), label: n === 1 ? "1 day" : `${n} days` })), { value: "", label: "never" }]}
-            onChange={(value) => onArchiveAfter(value ? Number(value) : null)}
-          />
-        </View>
-      )}
     </View>
   );
 }
 
 function AddForm({ onAdd }: { onAdd: (title: string, project: string) => void }) {
-  const { c, m, ui, set } = useBoard();
+  const { c, m, ui, set, scaled } = useBoard();
   const parent = ui.addParent ? m.byId[ui.addParent] : null;
   const projects = Object.values(m.board.projects);
   const [title, setTitle] = useState("");
@@ -403,7 +380,7 @@ function AddForm({ onAdd }: { onAdd: (title: string, project: string) => void })
         onKeyPress={(e) => {
           if (e.nativeEvent.key === "Escape") close();
         }}
-        style={[controlStyle(c), { fontSize: 11, color: c.foreground }]}
+        style={[controlStyle(c), { fontSize: scaled(11), color: c.foreground }]}
       />
       {ui.tab === "global" && !parent && (
         <View style={{ flexDirection: "row" }}>
