@@ -299,6 +299,8 @@ const LANE = 14; // distance between lanes
 const LINE = 1.5;
 const DOT = 18; // width of the slot a row's dot sits in
 const DISC = 7; // radius of the disc behind a dot, and of a turn
+const EDGE = 10; // space between a row and the sides of the panel, as around the legend
+const AFTER_DOT = 4; // space between the rail and a row's words
 
 export function List({ items }: { items: Item[] }) {
   const { c, m, ui, set } = useBoard();
@@ -309,7 +311,7 @@ export function List({ items }: { items: Item[] }) {
   const hasSteps = p.rows.some((row) => row.steps);
   return (
     <View style={{ paddingVertical: 8 }}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 3, marginHorizontal: 10, marginBottom: 6 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 3, marginHorizontal: EDGE, marginBottom: 6 }}>
         <T size={9} color={c.foregroundMuted}>
           ↓ Prerequisite above, next below
         </T>
@@ -329,7 +331,7 @@ export function List({ items }: { items: Item[] }) {
         )}
       </View>
       {p.loop && (
-        <T size={10} color={c.statusDanger} style={{ marginHorizontal: 10, marginBottom: 6 }}>
+        <T size={10} color={c.statusDanger} style={{ marginHorizontal: EDGE, marginBottom: 6 }}>
           Dependency loop: check the task and step prerequisites.
         </T>
       )}
@@ -439,7 +441,7 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
       accessibilityRole="button"
       accessibilityLabel={item.title + ", " + m.board.labels[item.status]}
       onPress={press}
-      style={{ flexDirection: "row", alignItems: "center", height, paddingRight: 8 }}
+      style={{ flexDirection: "row", alignItems: "center", height, paddingHorizontal: EDGE }}
     >
       {item.id === ui.selected && <Tint color={c.accent} opacity={0.16} />}
       <Rail rail={rail} height={height}>
@@ -449,7 +451,7 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
           style={{ width: scaled(DOT), height, alignItems: "center", justifyContent: "center", opacity: dim ? 0.4 : 1 }}
         />
       </Rail>
-      <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5, opacity: dim ? 0.4 : 1 }}>
+      <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5, marginLeft: AFTER_DOT, opacity: dim ? 0.4 : 1 }}>
         {steps && (
           <Pressable
             accessibilityRole="button"
@@ -500,12 +502,12 @@ function FoldRow({ row, fold, rail, dim }: { row: Row; fold: Fold; rail: RailOf;
       accessibilityRole="button"
       accessibilityState={{ expanded: fold.open }}
       onPress={() => set((now) => ({ showDone: { ...now.showDone, [fold.key]: !fold.open } }))}
-      style={{ flexDirection: "row", alignItems: "center", height, paddingRight: 8, opacity: dim && !fold.open ? 0.4 : 1 }}
+      style={{ flexDirection: "row", alignItems: "center", height, paddingHorizontal: EDGE, opacity: dim && !fold.open ? 0.4 : 1 }}
     >
       <Rail rail={rail} height={height}>
         <Icon name="Check" size={11} color={c.statusSuccess} />
       </Rail>
-      <T size={row.parent ? 10 : 11} color={c.foregroundMuted}>{`${fold.open ? "Hide" : "Show"} ${fold.count} done`}</T>
+      <T size={row.parent ? 10 : 11} color={c.foregroundMuted} style={{ marginLeft: AFTER_DOT }}>{`${fold.open ? "Hide" : "Show"} ${fold.count} done`}</T>
     </Pressable>
   );
 }
