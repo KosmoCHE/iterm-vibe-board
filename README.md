@@ -1,7 +1,7 @@
 # iterm-vibe-board
 
-A human-first progress board that lives in the iTerm2 toolbelt, shared by you and
-every AI coding agent running in your panes.
+A human-first progress board that lives in the iTerm2 toolbelt and in Paseo's
+sidebar, shared by you and every AI coding agent you run.
 
 > **Status: 0.1, early.** The panel, the `vibeboard` CLI, the Claude Code
 > adapter and `install.sh` work from a clone. The data format may still
@@ -26,7 +26,8 @@ items are yours, agents are just the ones pushing them.
 
 ## What it does
 
-- **One panel, three tabs** in the iTerm2 toolbelt (View › Toolbelt › Vibe Board):
+- **One panel, three tabs** in the iTerm2 toolbelt (View › Toolbelt › Vibe Board)
+  and beside each agent in Paseo:
   - **Global** – everything, grouped by project in List. A select narrows it to one
     project or one session.
   - **Project** – the items of the project the focused pane's session was
@@ -35,21 +36,18 @@ items are yours, agents are just the ones pushing them.
   - **Session** – the items the focused pane's session is pushing.
 
   Project and Session are bound to the pane you click into, like iTerm2's
-  Notes.
-- **List and Graph views**: Graph shows a task tree with separate dependency
-  branches inside each task background. Thin lines show membership; arrows run
-  from prerequisites to dependent steps, including splits, joins and cross-task
-  links. Select a node to highlight its prerequisite and dependent chains.
-  Folded items retain dashed arrows with summaries that reveal the original
-  endpoints. Prerequisites outside the current scope appear as navigation links.
-  Tasks start as compact nodes with steps folded, and saved folds are respected.
-  Independent flows pack by their actual height; node widths adapt to the sidebar
-  without stretching across wide columns. Expand individual tasks as needed, or
-  use Expand tasks / Collapse tasks for the current scope. Dense branches wrap
-  to keep titles readable. Completed items start folded. Click
-  a node for details and completion, double-click to edit, or hover for its full
-  title and description. View choice and task folds are remembered. The panel
-  uses a small bundled set of Lucide icons, with no runtime download.
+  Notes. In Paseo they follow the agent the panel sits beside.
+- **List and Graph views**: Graph draws the dependency structure the way a git
+  graph draws history. One line per item, prerequisites above what waits for
+  them, a dot per item and a lane per dependency: lanes split where several
+  items wait for one and join where one waits for several, across tasks too.
+  A task's steps branch off a faint trunk below it. Select an item to light up
+  everything upstream and downstream of it. Folded items keep their links as
+  dashed lanes, and an arrow marks a prerequisite outside the current scope.
+  Completed items start folded. Graph trades detail for structure: it shows
+  titles, status and step counts, and the rest is one press away. View choice
+  and folds are remembered. The web shell bundles a small set of Lucide icons,
+  with no runtime download.
 - **Every item records** its status (`todo`, `doing`, `waiting`, `later`,
   `done`), its driver (which session pushes it, if any), its origin, who
   created it, sub-steps, dependencies (across projects too), the next step,
@@ -64,14 +62,15 @@ items are yours, agents are just the ones pushing them.
 
   A parent shows `●2/4 · +0/1 · ⚡0/1`: done/total per origin over its direct
   sub-steps.
-- **You edit in the panel.** Tick a box, click for details, double-click to
-  edit, `+` at the top right to add, ⌘Z to undo. Click a session badge to jump
-  to that pane. When a session ends its badge greys out and you can hand the
-  item to another pane.
+- **You edit in the panel.** Tick a box, press an item for details (adding a
+  step, copying the title and deleting are there), press it twice to edit, `+`
+  at the top right to add, Undo (⌘Z in iTerm2) to take a change back. Press a
+  session badge to jump to that pane or agent. When a session ends its badge
+  greys out and you can hand the item to another one.
 - **Agents edit through the `vibeboard` CLI.** `vibeboard instructions` prints the
   rules: write the plan as sub-steps before starting, register anything
   unplanned before handling it, say which planned step comes next once a
-  detour is done. A session is recognised by the pane it runs in.
+  detour is done. A session is recognised by the pane or Paseo agent it runs in.
 - **Claude Code adapter**: a skill with those rules and two hooks
   (`SessionStart`, `SessionEnd`) that map panes to sessions. See
   [adapters/claude-code](adapters/claude-code/README.md).
@@ -88,6 +87,16 @@ PATH), links the Claude Code skill and hooks, and registers the panel as an
 iTerm2 AutoLaunch script. Then enable it under View › Toolbelt › Vibe Board.
 Rerun after `git pull`; `./install.sh --uninstall` takes it all out again.
 
+### In Paseo
+
+```sh
+paseo plugin install "$PWD/ui"
+```
+
+Turn on Settings › Plugins › Enable plugins, then add Vibe Board from the `+` of
+the sidebar beside an agent. The plugin reads the same local server, so run
+`./install.sh` first.
+
 Data lives in `~/.iterm-vibe-board/`: one JSON file per item under
 `projects/<key>/items/`, plus a small map from panes to sessions. Set
 `VIBEBOARD_HOME` to use another directory.
@@ -99,6 +108,7 @@ Data lives in `~/.iterm-vibe-board/`: one JSON file per item under
   (Scripts › Manage › Install Python Runtime); it runs the panel script.
 - Python 3.9 or newer for the CLI (the one Xcode's command line tools ship is enough).
 - Claude Code, for the first agent adapter.
+- Paseo 0.14 or newer, only for the panel inside Paseo.
 
 ## Not in the first version
 
@@ -108,7 +118,10 @@ A Gantt view, Homebrew formula, adapters for other agents.
 
 ```
 vibeboard/               Python package: store, CLI, local HTTP server (stdlib only)
-panel/                the toolbelt page: plain HTML, CSS and JS, no build step
+ui/                   the panel, written once in React Native, and also a Paseo plugin:
+  client/board/       the board itself; it reaches its host only through host.ts
+  web/, dist/         the shell for iTerm2's web view and its committed bundle
+  client/paseo.tsx, server/, shared/, index.*   the shell for Paseo
 iterm/                the iTerm2 AutoLaunch script that registers the panel
 adapters/claude-code/ skill and hooks for Claude Code
 tests/                pytest, core logic only
@@ -121,6 +134,7 @@ install.sh            links all of the above into place
 pip install ruff pytest
 ruff check . && ruff format --check .
 pytest -q
+cd ui && npm ci && npm run typecheck && npm run build   # after changing the panel
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

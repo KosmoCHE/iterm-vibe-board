@@ -1,6 +1,6 @@
 # iterm-vibe-board
 
-住在 iTerm2 侧栏里的进度看板，以人为中心，你和每个 pane 里跑着的 AI coding agent 一起维护。
+住在 iTerm2 侧栏和 Paseo 侧栏里的进度看板，以人为中心，你和你跑着的每个 AI coding agent 一起维护。
 
 > **状态：0.1，早期。**面板、`vibeboard` 命令行、Claude Code 适配层和 `install.sh` 都能从 clone 里跑起来；1.0 之前数据格式还可能改。
 
@@ -20,8 +20,7 @@
 
 断线时侧栏顶部显示“当前是旧数据”和最后同步时间，并暂时禁止修改；每秒重试，
 单次请求最多等待 5 秒。恢复后重新读取任务，不需要重复执行 `done`。
-若正在编辑字段，会保留输入并提示有更新等待显示；退出字段后，在下一次轮询时补刷新，
-即使服务器版本没有再次变化也会更新页面。
+正在编辑字段时看板照常刷新，已输入的内容保留在输入框里。
 这只解决状态同步；任务是否完成仍由你或 agent 根据实际结果更新。
 
 已有安装只升级服务、不改 hooks，可从新版仓库运行：
@@ -48,13 +47,13 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 
 ## 做什么
 
-- **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibe Board）：
+- **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibe Board），以及 Paseo 里每个 agent 旁边：
   - **Global**：所有的事，列表按项目分组；一个筛选框可以只看一个项目或一个 session。
   - **Project**：聚焦 pane 里的会话所在项目的事（按 Claude Code 启动目录算），子目录下登记的事也算在内。
   - **Session**：聚焦 pane 里的会话正在推的事。
 
-  Project 和 Session 绑定你点进的 pane，和 iTerm2 的 Notes 一样。
-- **列表与图视图切换**：Graph 用任务树展示 task 归属，在背景框内将独立流程拆成分支。细线表示归属，箭头从前置任务指向后续步骤，展示分叉、汇合及跨 task 的真实依赖。选中节点会突出它的前置和后续链路。折叠项的依赖保留为虚线，点击说明可展开原始节点；范围外的前置任务显示为可跳转的提示。task 默认显示为紧凑节点，subtask 按需展开，并保留已记住的折叠选择。多个独立 flow 按实际高度紧凑排列，节点随侧栏宽度调整，不撑满大列；密集分支换行，保持标题可读。也可点击 Expand tasks / Collapse tasks 展开或收起当前范围。已完成任务和步骤默认折叠。单击查看详情和勾选完成，双击编辑，悬停查看完整标题与 description。视图及 task 的展开状态会记住，图标使用随项目提供的 Lucide 子集。
+  Project 和 Session 绑定你点进的 pane，和 iTerm2 的 Notes 一样；在 Paseo 里跟随面板旁边的那个 agent。
+- **列表与图视图切换**：Graph 按 git graph 画提交历史的方式画依赖结构。每件事一行，前置在上、等它的在下；每件事一个圆点，每条依赖一条轨道：几件事等同一件就分叉，一件事等几件就汇合，跨 task 也一样。task 的步骤从它下方一条淡色主干上分出来。选中一件事会点亮它上游和下游的全部链路。折叠项的依赖保留为虚线轨道，范围外的前置用一个箭头标记。已完成的默认折叠。Graph 用细节换结构：只显示标题、状态和步骤计数，其余点一下看详情。视图及折叠状态会记住，网页外壳的图标使用随项目提供的 Lucide 子集。
 - **每件事记**：状态（`todo`、`doing`、`waiting`、`later`、`done`）、推进者（哪个 session 在推，也可以没有）、来源、谁建的、子步骤、依赖（可跨项目）、下一步、在等谁、日期。
 - **来源说的是这件事为什么存在**，事情堆起来时原计划仍然看得见：
   - `plan`：动手前写下的；
@@ -62,8 +61,8 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
   - `added`（+）：计划定了以后新加的需求，不处理原计划照样能完成。
 
   父级那一行显示 `●2/4 · +0/1 · ⚡0/1`：每类来源各自的「做完/总数」，只数直接子步骤。
-- **你在面板里改**：勾一下、单击看详情、双击改、右上角 `+` 新增、⌘Z 撤销。点会话标记跳到那个 pane；会话结束标记变灰，事可以交给别的 pane。
-- **agent 用 `vibeboard` 命令行改**。`vibeboard instructions` 打印规则：动手前把计划写成子步骤；计划外的事先登记再处理；绕路结束后说一句下一条计划是什么。会话靠它所在的 pane 识别。
+- **你在面板里改**：勾一下、点一下看详情（加步骤、复制标题、删除都在详情里）、连点两下改、右上角 `+` 新增、Undo 撤销（iTerm2 里也可以 ⌘Z）。点会话标记跳到那个 pane 或 agent；会话结束标记变灰，事可以交给别的会话。
+- **agent 用 `vibeboard` 命令行改**。`vibeboard instructions` 打印规则：动手前把计划写成子步骤；计划外的事先登记再处理；绕路结束后说一句下一条计划是什么。会话靠它所在的 pane 或 Paseo agent 识别。
 - **Claude Code 适配层**：一个装着这些规则的 skill，加两个 hook（`SessionStart`、`SessionEnd`）把 pane 对应到会话。见 [adapters/claude-code](adapters/claude-code/README.md)。
 
 ## 试一下
@@ -75,6 +74,14 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 
 它把 `vibeboard` 启动器放进 `~/.iterm-vibe-board/bin/`（并加进 PATH），链接 Claude Code 的 skill 和 hook，把面板注册为 iTerm2 的 AutoLaunch 脚本。然后在 View › Toolbelt › Vibe Board 打开它。`git pull` 之后重跑一次；`./install.sh --uninstall` 全部撤掉。
 
+### 在 Paseo 里
+
+```sh
+paseo plugin install "$PWD/ui"
+```
+
+打开 Settings › Plugins › Enable plugins，然后在 agent 旁边那个侧栏的 `+` 里加上 Vibe Board。插件读的是同一个本地服务，所以先跑 `./install.sh`。
+
 数据在 `~/.iterm-vibe-board/`：每件事一个 JSON 文件，放在 `projects/<key>/items/` 下，另有一张 pane 到会话的小表。设 `VIBEBOARD_HOME` 可以换目录。
 
 ## 要求
@@ -82,6 +89,7 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 - macOS，iTerm2 3.5 以上，开启 Python API（Settings › General › Magic），并装好它的 Python 运行时（Scripts › Manage › Install Python Runtime），面板脚本靠它跑。
 - 命令行要 Python 3.9 以上，Xcode 命令行工具自带的那个就够。
 - Claude Code（第一个 agent 适配层）。
+- Paseo 0.14 以上，只在要把面板放进 Paseo 时需要。
 
 ## 第一版不做
 
@@ -91,7 +99,10 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 
 ```
 vibeboard/               Python 包：存储、命令行、本地 HTTP 服务（只用标准库）
-panel/                侧栏页面：纯 HTML、CSS、JS，无构建
+ui/                   面板，用 React Native 只写一份，同时是一个 Paseo 插件：
+  client/board/       看板本身，只通过 host.ts 接触它所在的宿主
+  web/、dist/         给 iTerm2 网页视图用的外壳和提交进仓库的构建产物
+  client/paseo.tsx、server/、shared/、index.*   给 Paseo 用的外壳
 iterm/                注册面板的 iTerm2 AutoLaunch 脚本
 adapters/claude-code/ Claude Code 的 skill 和 hook
 tests/                pytest，只测核心逻辑
