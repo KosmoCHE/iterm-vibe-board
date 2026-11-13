@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { BoardData, Host, Item, Tab } from "./host";
 import { Inspector } from "./Inspector";
-import { List, reveal } from "./List";
+import { lasting, List, reveal } from "./List";
 import { model, projectPath } from "./model";
 import type { Model } from "./model";
 import { BoardContext, controlStyle, Icon, Link, Select, T, Tint, useBoard } from "./parts";
@@ -91,25 +91,29 @@ export function Board({ host }: { host: Host }) {
     return () => clearInterval(timer);
   }, []);
 
-  const remembered = useRef(false);
-  useEffect(() => {
-    if (remembered.current) host.savePrefs({ tab: ui.tab, open: ui.open });
-    remembered.current = true;
-  }, [ui.tab, ui.open]);
-
   const m = useMemo(() => board && model(board, host), [board, host.beside, host.project]);
   const filters = useMemo(() => (m ? filterOptions(m) : []), [m]);
 
+  const remembered = useRef(false);
+  useEffect(() => {
+    if (remembered.current) host.savePrefs({ tab: ui.tab, open: m ? lasting(ui.open, m) : ui.open });
+    remembered.current = true;
+  }, [ui.tab, ui.open]);
+
   // Every change goes through here: refused while the server is away, followed by a
   // refresh, and a failure is shown rather than thrown. `done` gets the server's reply.
-  async function write(method: "POST" | "PATCH", path: string, body: unknown, done: (reply: unknown) => void) {
+  // Resolves to whether the change went through.
+  async function write(method: "POST" | "PATCH", path: string, body?: unknown, done?: (reply: unknown) => void) {
     try {
       if (down) throw new Error("看板已断线，请等待重新连接后再修改任务");
-      done(await host.request(method, path, body));
-      await poll(true);
+      const reply = await host.request(method, path, body);
+      done?.(reply);
     } catch (e) {
       showError(e);
+      return false;
     }
+    await poll(true);
+    return true;
   }
 
   function remember(undo: Undo) {
@@ -145,12 +149,10 @@ export function Board({ host }: { host: Host }) {
     const last = undos[undos.length - 1];
     if (!last) return;
     setUndos((stack) => stack.slice(0, -1));
-    if ("restore" in last) {
-      await write("POST", `/api/items/${last.id}/restore`, undefined, () => notice(`Restored “${last.title}”`));
-      return;
-    }
-    await patch(last.id, last.fields, false);
-    notice(`Undid the change to “${last.title}”`);
+    const restore = "restore" in last;
+    const went = restore ? await write("POST", `/api/items/${last.id}/restore`) : await patch(last.id, last.fields, false);
+    if (went) notice(restore ? `Restored “${last.title}”` : `Undid the change to “${last.title}”`);
+    else remember(last); // refused, or lost on the way: the reason stays shown and it can be tried again
   }
 
   function add(title: string, project: string) {

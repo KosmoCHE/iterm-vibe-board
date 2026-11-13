@@ -58,6 +58,12 @@ function folded(open: Ui["open"], keys: string[], fold: boolean): Ui["open"] {
   return next;
 }
 
+/** Ui.open as it is worth remembering: without the folds of tasks that have left the board. */
+export function lasting(open: Ui["open"], m: Model): Ui["open"] {
+  // A key ends in its task's id: see stepsKey.
+  return Object.fromEntries(Object.entries(open).filter(([key]) => key.slice(key.lastIndexOf(":") + 1) in m.byId));
+}
+
 /** The folds to open so that an item shows. `openTask` also unfolds a task's own steps. */
 export function reveal(ui: Ui, m: Model, item: Item, openTask: boolean): Partial<Ui> {
   const task = m.scopeItems(ui.tab, ui.filter).find((i) => i.id === item.parent) || item;
