@@ -28,6 +28,7 @@ ORIGINS = ["plan", "issue", "added"]
 ME = "me"
 PASEO = "paseo"  # a pane record's `host` when the pane is a Paseo agent; iTerm2 panes carry none
 ARCHIVE_AFTER_DAYS = 7  # how long a finished task stays on the board, unless config.json says
+TEXT_SIZE = 100  # percent of the panel's own text sizes, unless config.json says
 
 DEFAULTS = {
     "title": "",
@@ -330,7 +331,7 @@ def archive(item_id: str, restore: bool = False) -> list[dict]:
 
 
 def config() -> dict:
-    """What the user has set, in config.json: status labels, how long finished tasks stay."""
+    """What the user has set, in config.json: status labels, archiving, text size."""
     path = home() / "config.json"
     if not path.is_file():
         return {}
@@ -349,6 +350,17 @@ def set_archive_after_days(days: int | None) -> None:
     if days is not None and (type(days) is not int or days < 1):
         raise ValueError("archive_after_days is a whole number of days, or null to archive nothing")
     _write_json(home() / "config.json", {**config(), "archive_after_days": days})
+
+
+def text_size() -> int:
+    """How large the panel draws its text, in percent of its own sizes."""
+    return config().get("text_size", TEXT_SIZE)
+
+
+def set_text_size(percent: int) -> None:
+    if type(percent) is not int or not 50 <= percent <= 300:
+        raise ValueError("text_size is a whole percentage from 50 to 300")
+    _write_json(home() / "config.json", {**config(), "text_size": percent})
 
 
 def archive_finished() -> list[dict]:

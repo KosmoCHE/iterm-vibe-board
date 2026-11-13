@@ -34,6 +34,7 @@ LABELS = {
 }
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript"}
 ARCHIVE_EVERY = 3600  # seconds between two looks for finished tasks to archive
+SETTINGS = {"archive_after_days": store.set_archive_after_days, "text_size": store.set_text_size}
 
 
 class BoardServer(ThreadingHTTPServer):
@@ -117,7 +118,10 @@ class BoardServer(ThreadingHTTPServer):
             "items": list(store.load_all().values()),
             "statuses": store.STATUSES,
             "labels": {**LABELS, **store.config().get("labels", {})},
-            "settings": {"archive_after_days": store.archive_after_days()},
+            "settings": {
+                "archive_after_days": store.archive_after_days(),
+                "text_size": store.text_size(),
+            },
             "me": store.ME,
         }
 
@@ -231,10 +235,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/api/settings":
                 body = self._body()
-                if set(body) != {"archive_after_days"}:
-                    raise ValueError("settings: archive_after_days is the one thing to set")
-                store.set_archive_after_days(body["archive_after_days"])
-                self.server.settings_changed.set()  # archive by the new rule right away
+                if len(body) != 1 or not body.keys() <= SETTINGS.keys():
+                    raise ValueError("settings: set one of " + ", ".join(SETTINGS))
+                [(name, value)] = body.items()
+                SETTINGS[name](value)
+                self.server.settings_changed.set()  # a new archive rule applies right away
                 self._json(body)
             elif len(parts) == 4 and parts[1:3] == ["api", "items"]:
                 self._json(store.update(parts[3], **self._body()))

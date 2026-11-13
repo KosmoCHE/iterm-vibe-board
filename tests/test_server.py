@@ -172,25 +172,35 @@ def test_jump_refuses_a_paseo_agent(live, monkeypatch):
     assert focused == [[server.IT2, "session", "focus", "ITERM"]]
 
 
-def test_the_archive_setting_is_read_and_changed_over_the_api(live, tmp_path, monkeypatch):
+def test_settings_are_read_and_changed_over_the_api(live, tmp_path, monkeypatch):
     board, call = live
     monkeypatch.setattr(server.BoardServer, "pane_names", lambda self: {})
     (tmp_path / "config.json").write_text(json.dumps({"labels": {"todo": "Next"}}))
-    assert call("GET", "/api/board")["settings"] == {"archive_after_days": 7}
+    assert call("GET", "/api/board")["settings"] == {"archive_after_days": 7, "text_size": 100}
     before = call("GET", "/api/version")["version"]
     call("PATCH", "/api/settings", {"archive_after_days": 30})
     after = call("GET", "/api/board")
-    assert after["settings"] == {"archive_after_days": 30}
+    assert after["settings"] == {"archive_after_days": 30, "text_size": 100}
     assert after["labels"]["todo"] == "Next"  # the other settings are kept
     assert after["version"] != before  # other open panels learn of it
     assert board.settings_changed.is_set()
     call("PATCH", "/api/settings", {"archive_after_days": None})
-    assert store.archive_after_days() is None
-    for bad in ({"archive_after_days": 0}, {"archive_after_days": "7"}, {}, {"labels": {}}):
+    call("PATCH", "/api/settings", {"text_size": 130})
+    assert call("GET", "/api/board")["settings"] == {"archive_after_days": None, "text_size": 130}
+    for bad in (
+        {"archive_after_days": 0},
+        {"archive_after_days": "7"},
+        {"text_size": 40},
+        {"text_size": 1.3},
+        # One at a time: a refused one leaves nothing half done.
+        {"archive_after_days": 3, "text_size": 120},
+        {},
+        {"labels": {}},
+    ):
         with pytest.raises(urllib.error.HTTPError) as refused:
             call("PATCH", "/api/settings", bad)
         assert refused.value.code == 400
-    assert store.archive_after_days() is None
+    assert call("GET", "/api/board")["settings"] == {"archive_after_days": None, "text_size": 130}
 
 
 def test_a_config_that_does_not_parse_is_named_and_does_not_stop_the_archiving(
