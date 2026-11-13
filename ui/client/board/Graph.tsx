@@ -13,7 +13,7 @@ import type { Item } from "./host";
 import { Empty } from "./List";
 import { graphFlows, graphLayers, scopedChildren } from "./model";
 import type { Model } from "./model";
-import { Icon, StatusIcon, T, Tint, useBoard, useItemPress } from "./parts";
+import { Complete, Icon, T, Tint, useBoard, useItemPress } from "./parts";
 import type { Ui } from "./parts";
 
 // --- what to draw ---------------------------------------------------------------
@@ -277,7 +277,8 @@ function lanes(p: Plan, lit: (edge: Edge) => boolean) {
 
 const LANE = 14; // distance between lanes
 const LINE = 1.5;
-const laneX = (lane: number) => 9 + lane * LANE; // centre of a lane
+const DOT = 18; // width of the slot a row's dot sits in
+const laneX = (lane: number) => DOT / 2 + lane * LANE; // centre of a lane
 
 export function Graph({ items }: { items: Item[] }) {
   const { c, m, ui, set } = useBoard();
@@ -340,7 +341,7 @@ function Rail({ rail, height, children }: { rail: RailOf; height: number; childr
   const widest = Math.max(rail.col, ...rail.strokes.map((stroke) => stroke.lane));
   const mid = height / 2;
   return (
-    <View style={{ width: laneX(widest) + 9, height }}>
+    <View style={{ width: laneX(widest) + DOT / 2, height }}>
       {rail.strokes.map((stroke, n) => {
         const paint = color[stroke.paint];
         const fade = stroke.paint === "lit" || stroke.paint === "back" ? 1 : stroke.paint === "tree" ? 0.3 : 0.7;
@@ -377,8 +378,9 @@ function Rail({ rail, height, children }: { rail: RailOf; height: number; childr
           : { borderTopWidth: LINE, ...(right ? { borderRightWidth: LINE, borderTopRightRadius: 7 } : { borderLeftWidth: LINE, borderTopLeftRadius: 7 }) };
         return <View key={n} style={[frame, corner]} />;
       })}
-      {/* The dot hides the lines that meet behind it. */}
-      <View style={{ position: "absolute", left: laneX(rail.col) - 7, top: mid - 7, width: 14, height: 14, borderRadius: 7, alignItems: "center", justifyContent: "center", backgroundColor: c.surface0 }}>
+      {/* The dot: a disc that hides the lines meeting behind it, in a slot as tall as the row. */}
+      <View style={{ position: "absolute", left: laneX(rail.col) - DOT / 2, top: 0, width: DOT, height, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", left: DOT / 2 - 7, top: mid - 7, width: 14, height: 14, borderRadius: 7, backgroundColor: c.surface0 }} />
         {children}
       </View>
     </View>
@@ -403,9 +405,11 @@ function ItemRow({ row, item, rail, dim, scope }: { row: Row; item: Item; rail: 
     >
       {item.id === ui.selected && <Tint color={c.accent} opacity={0.16} />}
       <Rail rail={rail} height={row.step ? ROW : TASK}>
-        <View style={{ opacity: dim ? 0.4 : 1 }}>
-          <StatusIcon item={item} size={row.step ? 11 : 13} />
-        </View>
+        <Complete
+          item={item}
+          size={row.step ? 11 : 13}
+          style={{ width: DOT, height: row.step ? ROW : TASK, alignItems: "center", justifyContent: "center", opacity: dim ? 0.4 : 1 }}
+        />
       </Rail>
       <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5, opacity: dim ? 0.4 : 1 }}>
         {steps && (

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import type { Item, Status } from "./host";
 import { projectPath, scopedChildren, when } from "./model";
-import { DoneFold, DriverChip, Field, Icon, Select, statusColor, StatusIcon, T, Tint, useBoard } from "./parts";
+import { Complete, DoneFold, DriverChip, Field, Icon, Select, statusColor, T, Tint, useBoard } from "./parts";
 
 export function Inspector() {
   const { c, m, ui, set, select, remove, copyTitle, jumpTo } = useBoard();
@@ -168,22 +168,6 @@ function Details({ item }: { item: Item }) {
       )}
       {graph && <Links item={item} />}
     </>
-  );
-}
-
-/** The checkbox that completes an item from the inspector. */
-function Complete({ item }: { item: Item }) {
-  const { patch } = useBoard();
-  const done = item.status === "done";
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityLabel={"Mark “" + item.title + "” " + (done ? "to do" : "done")}
-      accessibilityState={{ checked: done }}
-      onPress={() => patch(item.id, { status: done ? "todo" : "done" })}
-    >
-      <StatusIcon item={item} />
-    </Pressable>
   );
 }
 

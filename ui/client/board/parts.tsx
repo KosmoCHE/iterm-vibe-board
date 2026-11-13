@@ -101,6 +101,23 @@ export function StatusIcon({ item, size }: { item: Item; size?: number }) {
   return <Icon name={STATUS_ICON[status]} size={size ?? 13} color={statusColor(c, status)} />;
 }
 
+/** The status icon as a checkbox: a press completes the item, or reopens a done one. */
+export function Complete({ item, size, style }: { item: Item; size?: number; style?: StyleProp<ViewStyle> }) {
+  const { patch } = useBoard();
+  const done = item.status === "done";
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityLabel={"Mark “" + item.title + "” " + (done ? "to do" : "done")}
+      accessibilityState={{ checked: done }}
+      onPress={() => patch(item.id, { status: done ? "todo" : "done" })}
+      style={style}
+    >
+      <StatusIcon item={item} size={size} />
+    </Pressable>
+  );
+}
+
 /** A wash of colour over its parent: host colours come in any format, so they are never mixed. */
 export function Tint({ color, opacity, radius }: { color: string; opacity: number; radius?: number }) {
   return (

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import type { Item } from "./host";
 import { PROGRESS_WORDS, projectPath, scopedChildren } from "./model";
-import { Badge, DoneFold, DriverChip, Icon, isOpen, StatusIcon, T, Tint, useBoard, useItemPress } from "./parts";
+import { Badge, Complete, DoneFold, DriverChip, Icon, isOpen, T, Tint, useBoard, useItemPress } from "./parts";
 
 type Kids = Record<string, Item[]>;
 
@@ -110,7 +110,7 @@ function Branch({ item, depth, kids }: { item: Item; depth: number; kids: Kids }
 }
 
 function Row({ item, nChildren, nested }: { item: Item; nChildren: number; nested: boolean }) {
-  const { c, m, ui, set, patch, jumpTo } = useBoard();
+  const { c, m, ui, set, jumpTo } = useBoard();
   const press = useItemPress(item);
   const open = isOpen(ui, item.id);
   const labels = m.board.labels;
@@ -169,15 +169,7 @@ function Row({ item, nChildren, nested }: { item: Item; nChildren: number; neste
             <Icon name={open ? "ChevronDown" : "ChevronRight"} size={12} />
           </Pressable>
         )}
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityLabel={"Mark “" + item.title + "” " + (done ? "to do" : "done")}
-          accessibilityState={{ checked: done }}
-          onPress={() => patch(item.id, { status: done ? "todo" : "done" })}
-          style={{ width: 16, height: 18, alignItems: "center", justifyContent: "center" }}
-        >
-          <StatusIcon item={item} />
-        </Pressable>
+        <Complete item={item} style={{ width: 16, height: 18, alignItems: "center", justifyContent: "center" }} />
         <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
           <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 5 }}>
             {!item.parent && (
