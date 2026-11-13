@@ -82,7 +82,7 @@ export function Board({ host }: { host: Host }) {
     remembered.current = true;
   }, [ui.tab, ui.open]);
 
-  const m = useMemo(() => board && model(board, host.beside), [board, host.beside]);
+  const m = useMemo(() => board && model(board, host), [board, host.beside, host.project]);
 
   function change(method: "POST" | "PATCH", path: string, body?: unknown): Promise<unknown> {
     if (sync.current.down) return Promise.reject(new Error("看板已断线，请等待重新连接后再修改任务"));

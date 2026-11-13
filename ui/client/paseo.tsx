@@ -1,6 +1,6 @@
 // The board as a Paseo panel, beside the agents of one workspace.
 
-import { type PluginWorkspacePanelProps, usePaseo, useRpc, useTabState } from "@getpaseo/plugin/client";
+import { type PluginWorkspacePanelProps, usePaseo, useRpc, useTabState, useWorkspace } from "@getpaseo/plugin/client";
 import { copyText, Icon } from "@getpaseo/plugin/client/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
@@ -41,6 +41,7 @@ export function BoardPanel({ theme, navigation, workspaceId, tab }: PluginWorksp
     throwOnError: true,
   });
   const beside = useCallback((pane: Pane) => Boolean(agents.data?.includes(pane.pane)), [agents.data]);
+  const directory = useWorkspace(workspaceId, (workspace) => workspace.directory);
 
   const request: Host["request"] = async (method, path, body) => {
     const { ok, data } = await call({ method, path, body });
@@ -55,6 +56,7 @@ export function BoardPanel({ theme, navigation, workspaceId, tab }: PluginWorksp
     savePrefs: save,
     copyText,
     beside,
+    project: directory ?? undefined, // null while Paseo has no record of the workspace
     async jump(pane) {
       if (pane.host !== "paseo") await request("POST", "/api/jump", { pane: pane.pane }); // an iTerm2 pane
       else if (navigation) navigation.openAgent({ agentId: pane.pane.toLowerCase() });

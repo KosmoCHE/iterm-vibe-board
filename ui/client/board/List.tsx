@@ -343,8 +343,8 @@ function Empty() {
         ? "Nothing on the board."
         : "No items yet. Start a session in a project, then add items here.";
     }
-  } else if (!m.focus.sessions.length) text = "No session is running here.";
-  else text = ui.tab === "project" ? "Nothing in this project yet." : "This session pushes nothing yet.";
+  } else if (ui.tab === "project") text = m.focus.projects.length ? "Nothing in this project yet." : "No session is running here.";
+  else text = m.focus.sessions.length ? "This session pushes nothing yet." : "No session is running here.";
   return (
     <T size={12} color={c.foregroundMuted} style={{ marginVertical: 12, marginHorizontal: 14 }}>
       {text}

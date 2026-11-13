@@ -1,6 +1,6 @@
 // Reading the board's data: scopes, ordering, names. No UI, no host.
 
-import type { BoardData, Item, Pane, Status, Tab } from "./host";
+import type { BoardData, Host, Item, Pane, Status, Tab } from "./host";
 
 /** A project sees its own items and those filed under its sub-directories. */
 export function within(path: string, project: string): boolean {
@@ -73,18 +73,18 @@ export function graphFlows(items: Item[], dependencies: Map<string, Set<string>>
   return flows;
 }
 
-/** The board as seen from the panes it sits beside: the focused one, or those the host names. */
-export function model(board: BoardData, beside?: (pane: Pane) => boolean) {
+/** The board as seen from where it sits: beside the focused pane, or where the host says. */
+export function model(board: BoardData, host: Pick<Host, "beside" | "project">) {
   const byId: Record<string, Item> = Object.fromEntries(board.items.map((i) => [i.id, i]));
 
   // Project and Session follow the sessions running beside the board, newest first.
   // A pane record gets its session, project and start time together.
   const here = Object.values(board.panes)
-    .filter((p) => p.session && !p.ended_at && (beside ? beside(p) : p.pane === board.focus.pane))
+    .filter((p) => p.session && !p.ended_at && (host.beside ? host.beside(p) : p.pane === board.focus.pane))
     .sort((x, y) => (y.started_at || "").localeCompare(x.started_at || ""));
   const focus = {
     sessions: [...new Set(here.map((p) => p.session!))],
-    projects: [...new Set(here.map((p) => p.project!))],
+    projects: [...new Set([...(host.project ? [host.project] : []), ...here.map((p) => p.project!)])],
   };
 
   function scopeItems(tab: Tab, filter: string): Item[] {

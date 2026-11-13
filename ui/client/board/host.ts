@@ -103,6 +103,8 @@ export interface Host {
    * Absent: the one pane the server reports as focused.
    */
   beside?(pane: Pane): boolean;
+  /** The directory the board itself sits in, when the host has one: Project shows it before any session runs there. */
+  project?: string;
   /** Bring the user to a live pane. */
   jump(pane: Pane): Promise<void>;
   /** Bind the host's keyboard shortcuts to the board's commands; returns the unbind. */
