@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import threading
 from collections import defaultdict
@@ -366,8 +367,31 @@ def cmd_hook(args: argparse.Namespace) -> None:
 
 
 def _has_terminal() -> bool:
-    # Detached diagnostic PTYs can inherit iTerm IDs without belonging to that pane.
-    # Hook stdin is JSON, so isatty(stdin) cannot identify a real terminal session.
+    # Claude can detach the hook itself. Check the nearest Claude process, not
+    # an outer interactive session that may have launched a detached diagnostic.
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,ppid=,tty=,comm="],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=2,
+        )
+        processes = {}
+        for line in result.stdout.splitlines():
+            fields = line.split(None, 3)
+            if len(fields) == 4:
+                pid, parent, tty, command = fields
+                processes[int(pid)] = (int(parent), tty, command)
+        pid = os.getppid()
+        while pid > 1 and pid in processes:
+            parent, tty, command = processes[pid]
+            if os.path.basename(command) == "claude":
+                return tty not in ("?", "??", "-")
+            pid = parent
+    except (OSError, subprocess.SubprocessError):
+        pass
+    # Direct hook invocations still work in a terminal. JSON stdin is piped.
     try:
         fd = os.open("/dev/tty", os.O_RDONLY | os.O_NOCTTY)
     except OSError:

@@ -16,6 +16,9 @@ integration does it. Inside tmux that variable names whichever pane started
 the server, so the hook records nothing there. A background job (`CLAUDE_JOB_DIR`
 set) inherits the variable from the pane that launched it, so the hook records
 nothing for it either; the board knows it by `CLAUDE_CODE_SESSION_ID`.
+On macOS, Claude can detach the hook process itself. Registration checks the
+nearest Claude ancestor's terminal, so an interactive session still registers
+while a detached diagnostic session cannot take over the pane it inherited.
 
 ## Install
 

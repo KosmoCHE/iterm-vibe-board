@@ -18,7 +18,6 @@ def tmp_home(tmp_path, monkeypatch):
     monkeypatch.delenv("TMUX", raising=False)
     monkeypatch.delenv("CLAUDE_JOB_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
-    monkeypatch.setattr(cli, "_has_terminal", lambda: True)
     return tmp_path
 
 
@@ -142,6 +141,7 @@ def test_corrupt_item_file_loses_only_that_item(tmp_home):
 
 def test_nested_session_hands_the_pane_back(monkeypatch):
     monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    monkeypatch.setattr(cli, "_has_terminal", lambda: True)
 
     def feed(e):
         monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(e)))
@@ -251,6 +251,46 @@ def test_session_end_can_release_pane_after_losing_terminal(monkeypatch):
     assert store.identity() == ("root", "/tmp/root")
 
 
+@pytest.mark.parametrize("terminal", ["ttys005", "??"])
+def test_detached_hook_checks_nearest_claude_terminal(monkeypatch, terminal):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    cli._pane_start("original", "/tmp/original")
+    monkeypatch.setattr(cli.os, "getppid", lambda: 101)
+    # Both hooks are detached. Only the first has an interactive Claude parent;
+    # the second belongs to a detached diagnostic launched by that parent.
+    processes = (
+        "101 100 ?? /bin/sh\n"
+        f"100 50 {terminal} /opt/homebrew/bin/claude\n"
+        "50 1 ttys005 /opt/homebrew/bin/claude\n"
+    )
+    monkeypatch.setattr(
+        cli.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, stdout=processes),
+    )
+    event = {"hook_event_name": "SessionStart", "session_id": "new", "cwd": "/tmp/new"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
+    assert cli.main(["hook"]) == 0
+    expected = "new" if terminal == "ttys005" else "original"
+    assert store.get_pane("ABC-123")["session"] == expected
+
+
+def test_tmux_hooks_never_bind_to_inherited_iterm_pane(monkeypatch):
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    cli._pane_start("original", "/tmp/original")
+    before = store.get_pane("ABC-123")
+    monkeypatch.setattr(cli, "_has_terminal", lambda: True)
+    monkeypatch.setenv("TMUX", "/tmp/tmux-test/default,123,0")
+    for pane in ["%1", "%2"]:
+        monkeypatch.setenv("TMUX_PANE", pane)
+        for event_name in ["SessionStart", "SessionEnd"]:
+            event = {"hook_event_name": event_name, "session_id": pane, "cwd": "/tmp/tmux"}
+            monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
+            assert cli.main(["hook"]) == 0
+        assert store.current_pane() is None
+        assert store.get_pane("ABC-123") == before
+
+
 def test_start_and_done_times_come_from_the_clock():
     item = store.create("a", "/tmp/a")
     assert item["started_at"] is None
@@ -270,6 +310,7 @@ def test_description_is_free_text():
 
 def test_hook_records_the_pane(monkeypatch, tmp_path):
     monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")
+    monkeypatch.setattr(cli, "_has_terminal", lambda: True)
     event = {"hook_event_name": "SessionStart", "session_id": "s1", "cwd": "/tmp/a"}
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(event)))
     assert cli.main(["hook"]) == 0

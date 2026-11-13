@@ -64,3 +64,27 @@ def test_version_ignores_session_order_but_detects_task_changes(board_server, mo
 
     store.update(task["id"], status="doing")
     assert board_server.version() != before
+
+
+def test_focus_switch_preserves_reassigned_task_ownership(board_server, monkeypatch):
+    store.set_pane("VOTE", session="vote", project="/example")
+    store.set_pane("OTHER", session="other", project="/example")
+    monkeypatch.setattr(board_server, "pane_names", lambda: {"VOTE": "vote-opt", "OTHER": "other"})
+    tasks = [
+        store.create(f"Task {index}", "/example", driver="vote", status=status)
+        for index, status in enumerate(["waiting"] * 2 + ["later"] * 4)
+    ]
+    other = store.create("Other task", "/example", driver="other")
+    for pane, session, expected in [
+        ("VOTE", "vote", tasks),
+        ("OTHER", "other", [other]),
+        ("UNBOUND", None, []),
+        ("VOTE", "vote", tasks),
+    ]:
+        board_server.focus = pane
+        board = board_server.board()
+        assert board["focus"]["session"] == session
+        assert {i["id"] for i in board["items"] if session and i["driver"] == session} == {
+            i["id"] for i in expected
+        }
+    assert all(store.get(item["id"]) == item for item in tasks)

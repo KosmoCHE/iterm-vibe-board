@@ -8,6 +8,9 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Interactive Claude sessions register even when Claude detaches their hooks.
+  Terminal checks inspect the nearest Claude ancestor, so a detached diagnostic
+  cannot borrow the terminal of an outer interactive session.
 - Detached diagnostic sessions without a controlling terminal cannot take over an
   inherited iTerm pane. Resuming an outer session clears its stale inner chain,
   and out-of-order session endings no longer restore an already finished session.
