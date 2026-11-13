@@ -16,6 +16,7 @@ def tmp_home(tmp_path, monkeypatch):
     monkeypatch.delenv("ITERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TMUX", raising=False)
+    monkeypatch.delenv("PASEO_AGENT_ID", raising=False)
     monkeypatch.delenv("CLAUDE_JOB_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
     return tmp_path
@@ -137,6 +138,24 @@ def test_corrupt_item_file_loses_only_that_item(tmp_home):
     bad = tmp_home / "projects" / store.project_key("/tmp/a") / "items" / "bad.json"
     bad.write_text("{not json")
     assert set(store.load_all()) == {keep["id"]}
+
+
+def test_paseo_agent_is_a_pane_without_a_terminal(monkeypatch):
+    monkeypatch.setenv("PASEO_AGENT_ID", "41deff53-1a3e")
+    monkeypatch.setenv("ITERM_SESSION_ID", "w0t1p0:abc-123")  # the daemon was started in a pane
+    monkeypatch.setattr(cli, "_has_terminal", lambda: False)
+
+    def feed(e):
+        monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(e)))
+
+    feed({"hook_event_name": "SessionStart", "session_id": "agent", "cwd": "/tmp/a"})
+    cli.main(["hook"])
+    assert store.get_pane("41DEFF53-1A3E")["host"] == store.PASEO
+    assert store.get_pane("ABC-123") is None
+    assert store.identity() == ("agent", "/tmp/a")
+    feed({"hook_event_name": "SessionEnd", "session_id": "agent"})
+    cli.main(["hook"])
+    assert store.identity() == (store.ME, None)
 
 
 def test_nested_session_hands_the_pane_back(monkeypatch):

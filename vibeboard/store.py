@@ -25,6 +25,7 @@ from pathlib import Path
 STATUSES = ["todo", "doing", "waiting", "later", "done"]
 ORIGINS = ["plan", "issue", "added"]
 ME = "me"
+PASEO = "paseo"  # a pane record's `host` when the pane is a Paseo agent; iTerm2 panes carry none
 
 DEFAULTS = {
     "title": "",
@@ -374,8 +375,16 @@ def pane_id(raw: str) -> str:
     return raw.split(":")[-1].upper()
 
 
+def in_paseo() -> bool:
+    """Paseo names the agent in the environment of every process the agent starts."""
+    return bool(os.environ.get("PASEO_AGENT_ID"))
+
+
 def current_pane() -> str | None:
-    """The iTerm2 pane this process runs in, or None when that cannot be trusted."""
+    """The pane this process runs in, a Paseo agent or an iTerm2 session, or None when
+    that cannot be trusted."""
+    if in_paseo():  # before iTerm2's variable: the daemon may have been started from a terminal
+        return pane_id(os.environ["PASEO_AGENT_ID"])
     if os.environ.get("TMUX"):
         return None  # inside tmux the variable names whichever pane started the server
     raw = os.environ.get("ITERM_SESSION_ID") or os.environ.get("TERM_SESSION_ID")

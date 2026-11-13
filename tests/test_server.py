@@ -1,5 +1,8 @@
 import json
 import subprocess
+import threading
+import urllib.error
+import urllib.request
 from http.server import ThreadingHTTPServer
 
 import pytest
@@ -88,3 +91,59 @@ def test_focus_switch_preserves_reassigned_task_ownership(board_server, monkeypa
             i["id"] for i in expected
         }
     assert all(store.get(item["id"]) == item for item in tasks)
+
+
+def test_paseo_agents_are_listed_once_one_is_on_the_board(board_server, monkeypatch):
+    store.set_pane("ITERM", session="a", project="/example")
+    asked = []
+
+    def listing(command, **kwargs):
+        asked.append(command[0])
+        listed = [{"id": "iterm", "name": "shell"}]
+        if command[0] == server.PASEO:
+            listed = [
+                {"id": "agent-1", "name": "Fix it", "status": "idle"},
+                {"id": "agent-2", "name": "Old", "status": "closed"},
+            ]
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(listed))
+
+    monkeypatch.setattr(server.subprocess, "run", listing)
+    assert board_server.pane_names() == {"ITERM": "shell"}
+    assert asked == [server.IT2]
+
+    store.set_pane("AGENT-1", host=store.PASEO, session="b", project="/example")
+    store.set_pane("AGENT-2", host=store.PASEO, session="c", project="/example")
+    board_server._names = ({}, 0.0)
+    panes = board_server.board()["panes"]
+    assert (panes["AGENT-1"]["name"], panes["AGENT-1"]["alive"]) == ("Fix it", True)
+    assert panes["AGENT-2"]["alive"] is False
+    assert panes["ITERM"]["alive"] is True
+
+
+def test_jump_refuses_a_paseo_agent(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIBEBOARD_HOME", str(tmp_path))
+    store.set_pane("AGENT-1", host=store.PASEO, session="b", project="/example")
+    focused = []
+    monkeypatch.setattr(server.subprocess, "run", lambda command, **kwargs: focused.append(command))
+    board = server.serve(port=0, token="test")
+    threading.Thread(target=board.serve_forever, daemon=True).start()
+    try:
+
+        def jump(pane):
+            return urllib.request.urlopen(
+                urllib.request.Request(
+                    f"http://127.0.0.1:{board.server_port}/api/jump",
+                    data=json.dumps({"pane": pane}).encode(),
+                    headers={"X-Vibeboard-Token": "test"},
+                )
+            )
+
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            jump("agent-1")
+        assert refused.value.code == 400
+        assert focused == []
+        assert jump("iterm").status == 200
+        assert focused == [[server.IT2, "session", "focus", "ITERM"]]
+    finally:
+        board.shutdown()
+        board.server_close()
