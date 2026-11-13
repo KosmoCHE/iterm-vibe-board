@@ -1,6 +1,7 @@
 import json
 import subprocess
 import threading
+import time
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
@@ -118,6 +119,23 @@ def test_paseo_agents_are_listed_once_one_is_on_the_board(board_server, monkeypa
     assert (panes["AGENT-1"]["name"], panes["AGENT-1"]["alive"]) == ("Fix it", True)
     assert panes["AGENT-2"]["alive"] is False
     assert panes["ITERM"]["alive"] is True
+
+
+def test_panels_asking_at_once_share_one_listing(board_server, monkeypatch):
+    asked = []
+
+    def listing(command, **kwargs):
+        asked.append(command[0])
+        time.sleep(0.2)  # long enough for the other panels to ask as well
+        return subprocess.CompletedProcess(command, 0, stdout="[]")
+
+    monkeypatch.setattr(server.subprocess, "run", listing)
+    panels = [threading.Thread(target=board_server.pane_names) for _ in range(5)]
+    for panel in panels:
+        panel.start()
+    for panel in panels:
+        panel.join()
+    assert asked == [server.IT2]
 
 
 @pytest.fixture

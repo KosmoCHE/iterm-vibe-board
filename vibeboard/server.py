@@ -44,6 +44,7 @@ class BoardServer(ThreadingHTTPServer):
         self.token = token or secrets.token_urlsafe(24)
         self.focus: str | None = None  # pane the user is looking at, pushed by the iTerm2 script
         self._names: tuple[dict, float] = ({}, 0.0)
+        self._listing = threading.Lock()
         self._silent: set[str] = set()  # listing commands whose failure was already reported
         self.settings_changed = threading.Event()
 
@@ -67,23 +68,25 @@ class BoardServer(ThreadingHTTPServer):
     def pane_names(self) -> dict[str, str]:
         """Names of the live panes as their hosts show them, cached briefly: iTerm2's
         sessions, and Paseo's agents once a Paseo session is on the board."""
-        names, stamp = self._names
-        if time.time() - stamp < 3:
+        with self._listing:  # every open panel asks each second: one of them does the listing
+            names, stamp = self._names
+            if time.time() - stamp < 3:
+                return names
+            names = {
+                s["id"].upper(): s.get("name") or s.get("title") or ""
+                for s in self._listed([IT2, "session", "list", "--json"])
+            }
+            if any(
+                p.get("host") == store.PASEO and not p.get("ended_at")
+                for p in store.panes().values()
+            ):
+                names.update(
+                    (a["id"].upper(), a.get("name") or "")
+                    for a in self._listed([PASEO, "ls", "--global", "--json"])
+                    if a.get("status") != "closed"
+                )
+            self._names = (names, time.time())
             return names
-        names = {
-            s["id"].upper(): s.get("name") or s.get("title") or ""
-            for s in self._listed([IT2, "session", "list", "--json"])
-        }
-        if any(
-            p.get("host") == store.PASEO and not p.get("ended_at") for p in store.panes().values()
-        ):
-            names.update(
-                (a["id"].upper(), a.get("name") or "")
-                for a in self._listed([PASEO, "ls", "--global", "--json"])
-                if a.get("status") != "closed"
-            )
-        self._names = (names, time.time())
-        return names
 
     def keep_archiving(self) -> None:
         """Take long-finished tasks off the board: now, hourly, and when the setting changes."""
