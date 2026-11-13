@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { Graph, reveal } from "./Graph";
-import type { BoardData, Host, Item, Tab, ViewMode } from "./host";
+import type { BoardData, Host, Item, Tab } from "./host";
 import { Inspector } from "./Inspector";
-import { List } from "./List";
+import { List, reveal } from "./List";
 import { model, projectPath } from "./model";
 import type { Model } from "./model";
 import { BoardContext, controlStyle, Icon, Select, T, Tint, useBoard } from "./parts";
@@ -24,7 +23,6 @@ export function Board({ host }: { host: Host }) {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [ui, setUi] = useState<Ui>(() => ({
     ...host.prefs,
-    graphDone: {},
     showDone: {},
     filter: "",
     selected: null,
@@ -80,9 +78,9 @@ export function Board({ host }: { host: Host }) {
 
   const remembered = useRef(false);
   useEffect(() => {
-    if (remembered.current) host.savePrefs({ tab: ui.tab, view: ui.view, fold: ui.fold, graphOpen: ui.graphOpen });
+    if (remembered.current) host.savePrefs({ tab: ui.tab, open: ui.open });
     remembered.current = true;
-  }, [ui.tab, ui.view, ui.fold, ui.graphOpen]);
+  }, [ui.tab, ui.open]);
 
   const m = useMemo(() => board && model(board, host.beside), [board, host.beside]);
 
@@ -153,7 +151,7 @@ export function Board({ host }: { host: Host }) {
         created_by: board!.me,
         driver: ui.tab === "session" ? m!.focus.sessions[0] : null, // the newest session here
       });
-      if (parent) set((now) => ({ fold: { ...now.fold, [now.tab + ":" + parent]: true } })); // show what was just added
+      if (parent) set((now) => reveal(now, m!, m!.byId[parent], true)); // show what was just added
       notice(`Added “${title}”`);
       await poll();
     } catch (e) {
@@ -166,25 +164,17 @@ export function Board({ host }: { host: Host }) {
   function select(id: string | null, edit = false) {
     set((now) => {
       const item = id ? m!.byId[id] : null;
-      const opened = item && now.view === "graph" ? reveal(now, m!, item, false) : {};
-      return { ...opened, selected: id, editing: Boolean(id) && edit };
+      return { ...(item ? reveal(now, m!, item, false) : {}), selected: id, editing: Boolean(id) && edit };
     });
   }
 
   // Show an item wherever it is: switch to Global if the current tab cannot see it,
-  // unfold its parent, open the done block it may sit in, then select it.
+  // unfold what hides it, then select it.
   function jumpTo(item: Item) {
     set((now) => {
       const seen = m!.scopeItems(now.tab, now.filter).some((i) => i.id === item.id);
-      const next: Ui = seen ? { ...now } : { ...now, tab: "global", filter: "" };
-      const parent = m!.scopeItems(next.tab, next.filter).find((i) => i.id === item.parent);
-      if (parent) next.fold = { ...next.fold, [next.tab + ":" + parent.id]: true };
-      if (item.status === "done") {
-        const key = parent ? parent.id : next.tab === "global" ? "root:" + item.project : "root";
-        next.showDone = { ...next.showDone, [next.tab + ":" + key]: true };
-      }
-      if (next.view === "graph") Object.assign(next, reveal(next, m!, item, true));
-      return { ...next, selected: item.id, editing: false };
+      const next: Ui = seen ? now : { ...now, tab: "global", filter: "" };
+      return { ...next, ...reveal(next, m!, item, true), selected: item.id, editing: false };
     });
   }
 
@@ -223,8 +213,7 @@ export function Board({ host }: { host: Host }) {
   // What the remembered state points at may be gone.
   const filter = filterOptions(m).some((o) => o.value === ui.filter) ? ui.filter : "";
   const items = m.scopeItems(ui.tab, filter);
-  const visible = ui.view === "graph" ? items : board.items;
-  const selected = visible.some((i) => i.id === ui.selected) ? ui.selected : null;
+  const selected = items.some((i) => i.id === ui.selected) ? ui.selected : null;
   const shown: Ui = { ...ui, filter, selected, editing: Boolean(selected) && ui.editing };
   const ctx: Ctx = { host, c, m, ui: shown, set, patch, remove, select, jumpTo, jumpToDriver, copyTitle };
   const canAdd = ui.tab === "global" ? Object.keys(board.projects).length > 0 : m.focus.projects.length > 0;
@@ -245,7 +234,7 @@ export function Board({ host }: { host: Host }) {
         <View style={{ flex: 1, pointerEvents: down ? "none" : "auto" }}>
           {ui.adding && canAdd && <AddForm onAdd={add} />}
           <ScrollView style={{ flex: 1, opacity: down ? 0.5 : 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
-            {ui.view === "graph" ? <Graph items={items} /> : <List items={items} />}
+            <List items={items} />
           </ScrollView>
           <Inspector />
           {(message.text !== "" || undos.length > 0) && (
@@ -285,84 +274,52 @@ function filterOptions(m: Model): Option[] {
 function Header({ canAdd }: { canAdd: boolean }) {
   const { c, m, ui, set } = useBoard();
   const f = m.focus;
-  const views: [ViewMode, string, "List" | "Workflow"][] = [
-    ["list", "List", "List"],
-    ["graph", "Graph", "Workflow"],
-  ];
   return (
-    <>
-      <View style={{ paddingTop: 6, paddingHorizontal: 8, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: c.border }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <View accessibilityRole="tablist" style={{ flex: 1, flexDirection: "row", gap: 2, padding: 2, borderRadius: 7, backgroundColor: c.surface2 }}>
-            {TABS.map(([tab, label]) => (
-              <Pressable
-                key={tab}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: ui.tab === tab }}
-                onPress={() => set(() => ({ tab, selected: null, editing: false }))}
-                style={{ flex: 1, alignItems: "center", paddingVertical: 2, borderRadius: 5, backgroundColor: ui.tab === tab ? c.surface0 : undefined }}
-              >
-                <T size={12} weight="500" color={ui.tab === tab ? c.foreground : c.foregroundMuted}>
-                  {label}
-                </T>
-              </Pressable>
-            ))}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add an item"
-            disabled={!canAdd}
-            onPress={() => set((now) => ({ adding: !now.adding, addParent: null }))}
-            style={{ opacity: canAdd ? 1 : 0.4 }}
-          >
-            <Icon name="Plus" size={15} />
-          </Pressable>
+    <View style={{ paddingTop: 6, paddingHorizontal: 8, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: c.border }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View accessibilityRole="tablist" style={{ flex: 1, flexDirection: "row", gap: 2, padding: 2, borderRadius: 7, backgroundColor: c.surface2 }}>
+          {TABS.map(([tab, label]) => (
+            <Pressable
+              key={tab}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: ui.tab === tab }}
+              onPress={() => set(() => ({ tab, selected: null, editing: false }))}
+              style={{ flex: 1, alignItems: "center", paddingVertical: 2, borderRadius: 5, backgroundColor: ui.tab === tab ? c.surface0 : undefined }}
+            >
+              <T size={12} weight="500" color={ui.tab === tab ? c.foreground : c.foregroundMuted}>
+                {label}
+              </T>
+            </Pressable>
+          ))}
         </View>
-        {/* Project and Session follow the sessions beside the board; Global sees everything
-            and can be narrowed to one project or one driver. */}
-        <View style={{ flexDirection: "row", marginTop: 5, minHeight: 18 }}>
-          {ui.tab === "global" && (
-            <Select value={ui.filter} options={filterOptions(m)} onChange={(filter) => set(() => ({ filter }))} />
-          )}
-          {ui.tab === "project" && (
-            <T size={12} lines={1} color={c.foregroundMuted}>
-              {f.projects.length ? f.projects.map(projectPath).join(", ") : "no project here"}
-            </T>
-          )}
-          {ui.tab === "session" && (
-            <T size={12} lines={1} color={c.foregroundMuted}>
-              {f.sessions.length ? f.sessions.map((s) => "@" + m.whoName(s)).join(", ") : "no session here"}
-            </T>
-          )}
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add an item"
+          disabled={!canAdd}
+          onPress={() => set((now) => ({ adding: !now.adding, addParent: null }))}
+          style={{ opacity: canAdd ? 1 : 0.4 }}
+        >
+          <Icon name="Plus" size={15} />
+        </Pressable>
       </View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: c.border }}>
-        {views.map(([view, label, icon]) => (
-          <Pressable
-            key={view}
-            accessibilityRole="button"
-            accessibilityState={{ selected: ui.view === view }}
-            onPress={() =>
-              set((now) => {
-                const item = view === "graph" && now.selected ? m.byId[now.selected] : null;
-                return { ...(item ? reveal(now, m, item, true) : {}), view };
-              })
-            }
-            style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: ui.view === view ? c.accent : "transparent" }}
-          >
-            <Icon name={icon} size={13} color={ui.view === view ? c.foreground : c.foregroundMuted} />
-            <T size={12} color={ui.view === view ? c.foreground : c.foregroundMuted}>
-              {label}
-            </T>
-          </Pressable>
-        ))}
-        {ui.view === "graph" && (
-          <T size={10} color={c.foregroundMuted} style={{ marginLeft: "auto" }}>
-            {"Tasks & dependencies"}
+      {/* Project and Session follow the sessions beside the board; Global sees everything
+          and can be narrowed to one project or one driver. */}
+      <View style={{ flexDirection: "row", marginTop: 5, minHeight: 18 }}>
+        {ui.tab === "global" && (
+          <Select value={ui.filter} options={filterOptions(m)} onChange={(filter) => set(() => ({ filter }))} />
+        )}
+        {ui.tab === "project" && (
+          <T size={12} lines={1} color={c.foregroundMuted}>
+            {f.projects.length ? f.projects.map(projectPath).join(", ") : "no project here"}
+          </T>
+        )}
+        {ui.tab === "session" && (
+          <T size={12} lines={1} color={c.foregroundMuted}>
+            {f.sessions.length ? f.sessions.map((s) => "@" + m.whoName(s)).join(", ") : "no session here"}
           </T>
         )}
       </View>
-    </>
+    </View>
   );
 }
 

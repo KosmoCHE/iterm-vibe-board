@@ -12,9 +12,7 @@ import type { Host, Pane, Prefs } from "./board/host";
 
 const prefs = z.object({
   tab: z.enum(["global", "project", "session"]),
-  view: z.enum(["list", "graph"]),
-  fold: z.record(z.string(), z.boolean()),
-  graphOpen: z.record(z.string(), z.boolean()),
+  open: z.record(z.string(), z.boolean()),
 });
 
 const PaseoIcon: Host["Icon"] = (props) => <Icon {...props} />;

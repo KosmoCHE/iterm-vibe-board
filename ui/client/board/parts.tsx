@@ -1,20 +1,17 @@
-// The board's shared context and the small controls every view uses.
+// The board's shared context and the small controls its parts use.
 
 import { createContext, useContext, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
-import type { Colors, Host, IconName, Item, Status, Tab, ViewMode } from "./host";
+import type { Colors, Host, IconName, Item, Status, Tab } from "./host";
 import type { Model } from "./model";
 
-/** What the board shows right now. The first four fields are remembered (Prefs). */
+/** What the board shows right now. The first two fields are remembered (Prefs). */
 export interface Ui {
   tab: Tab;
-  view: ViewMode;
-  fold: Record<string, boolean>;
-  graphOpen: Record<string, boolean>;
-  graphDone: Record<string, boolean>;
-  showDone: Record<string, boolean>; // "tab:key": that level's done items are unfolded
+  open: Record<string, boolean>;
+  showDone: Record<string, boolean>; // "root:scope" or "tab:task": that level's done items are unfolded
   filter: string; // Global only: "" | "project:<path>" | "who:<session>"
   selected: string | null; // shown in the inspector
   editing: boolean; // the inspector shows controls instead of text
@@ -40,11 +37,6 @@ export const BoardContext = createContext<Ctx | null>(null);
 
 export function useBoard(): Ctx {
   return useContext(BoardContext)!;
-}
-
-export function isOpen(ui: Ui, id: string): boolean {
-  const key = ui.tab + ":" + id;
-  return key in ui.fold ? ui.fold[key] : ui.tab !== "global";
 }
 
 export function statusColor(c: Colors, status: Status): string {
@@ -95,7 +87,7 @@ export function Icon(props: { name: IconName; size?: number; color?: string }) {
   return <host.Icon name={props.name} size={props.size ?? 12} color={props.color ?? c.foregroundMuted} />;
 }
 
-export function StatusIcon({ item, size }: { item: Item; size?: number }) {
+function StatusIcon({ item, size }: { item: Item; size?: number }) {
   const { c, m } = useBoard();
   const status = m.shownStatus(item);
   return <Icon name={STATUS_ICON[status]} size={size ?? 13} color={statusColor(c, status)} />;
@@ -137,58 +129,21 @@ export function Tint({ color, opacity, radius }: { color: string; opacity: numbe
   );
 }
 
-export function Badge(props: {
-  text: string;
-  color?: string;
-  weight?: TextStyle["fontWeight"];
-  icon?: IconName;
-  plain?: boolean; // no pill behind it
-  outline?: "solid" | "dashed";
-  onPress?: () => void;
-}) {
-  const { c } = useBoard();
-  const color = props.color ?? c.foregroundMuted;
-  const style: ViewStyle = {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    maxWidth: "100%",
-    borderRadius: 4,
-    paddingVertical: 1,
-    paddingHorizontal: props.plain ? 0 : 4,
-    backgroundColor: props.plain || props.outline ? undefined : c.surface2,
-    borderWidth: props.outline ? 1 : 0,
-    borderStyle: props.outline,
-    borderColor: c.border,
-  };
-  const body = (
-    <>
-      {props.icon && <Icon name={props.icon} size={10} color={color} />}
-      <T size={9} color={color} weight={props.weight} lines={1} style={{ flexShrink: 1 }}>
-        {props.text}
-      </T>
-    </>
-  );
-  if (!props.onPress) return <View style={style}>{body}</View>;
-  return (
-    <Pressable accessibilityRole="button" onPress={props.onPress} style={style}>
-      {body}
-    </Pressable>
-  );
-}
-
 /** The session an item is pushed by. Press jumps to its pane, or opens the editor when it is gone. */
 export function DriverChip({ item }: { item: Item }) {
   const { c, m, jumpToDriver } = useBoard();
   const pane = m.paneOf(item.driver!);
   const gone = Boolean(pane && !pane.alive);
   return (
-    <Badge
-      text={"@" + m.whoName(item.driver)}
-      color={gone ? c.foregroundMuted : c.foreground}
-      outline={gone ? "dashed" : "solid"}
+    <Pressable
+      accessibilityRole="button"
       onPress={() => jumpToDriver(item)}
-    />
+      style={{ maxWidth: "100%", borderRadius: 4, paddingVertical: 1, paddingHorizontal: 4, borderWidth: 1, borderStyle: gone ? "dashed" : "solid", borderColor: c.border }}
+    >
+      <T size={9} lines={1} color={gone ? c.foregroundMuted : c.foreground}>
+        {"@" + m.whoName(item.driver)}
+      </T>
+    </Pressable>
   );
 }
 

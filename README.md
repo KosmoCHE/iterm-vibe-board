@@ -28,8 +28,7 @@ items are yours, agents are just the ones pushing them.
 
 - **One panel, three tabs** in the iTerm2 toolbelt (View › Toolbelt › Vibe Board)
   and in the sidebar of each Paseo workspace:
-  - **Global** – everything, grouped by project in List. A select narrows it to one
-    project or one session.
+  - **Global** – everything. A select narrows it to one project or one session.
   - **Project** – the items of the project the focused pane's session was
     started in (a Claude Code launch directory), including those filed under
     its sub-directories.
@@ -37,17 +36,16 @@ items are yours, agents are just the ones pushing them.
 
   Project and Session are bound to the pane you click into, like iTerm2's
   Notes. In Paseo they cover the agents of the workspace the panel is in.
-- **List and Graph views**: Graph draws the dependency structure the way a git
-  graph draws history. One line per item, prerequisites above what waits for
-  them, a dot per item and a lane per dependency: lanes split where several
-  items wait for one and join where one waits for several, across tasks too.
-  A task's steps branch off a faint trunk below it. Select an item to light up
-  everything upstream and downstream of it. Folded items keep their links as
-  dashed lanes, and an arrow marks a prerequisite outside the current scope.
-  Completed items start folded. Graph trades detail for structure: it shows
-  titles, status and step counts, and the rest is one press away. View choice
-  and folds are remembered. The web shell bundles a small set of Lucide icons,
-  with no runtime download.
+- **One list that shows what waits for what**, drawn the way a git graph draws
+  history. One line per item, prerequisites above what waits for them, a dot
+  per item and a lane per dependency: lanes split where several items wait for
+  one and join where one waits for several, across tasks too. A task's steps
+  branch off a faint trunk below it. Select an item to light up everything
+  upstream and downstream of it. Folded items keep their links as dashed
+  lanes, and an arrow marks a prerequisite outside the current scope.
+  Completed items start folded. A line shows the title, the status and the
+  step count; the rest is one press away in the details. Folds are remembered.
+  The web shell bundles a small set of Lucide icons, with no runtime download.
 - **Every item records** its status (`todo`, `doing`, `waiting`, `later`,
   `done`), its driver (which session pushes it, if any), its origin, who
   created it, sub-steps, dependencies (across projects too), the next step,
@@ -60,9 +58,8 @@ items are yours, agents are just the ones pushing them.
   - `added` (+) – new scope added after the plan; ignore it and the plan still
     finishes.
 
-  A parent shows `●2/4 · +0/1 · ⚡0/1`: done/total per origin over its direct
-  sub-steps.
-- **You edit in the panel.** Tick a box, press an item for details (adding a
+  A task shows `2/4`: done/total over its direct sub-steps.
+- **You edit in the panel.** Press an item's dot to tick it off, press an item for details (adding a
   step, copying the title and deleting are there), press it twice to edit, `+`
   at the top right to add, Undo (⌘Z in iTerm2) to take a change back. Press a
   session badge to jump to that pane or agent. When a session ends its badge

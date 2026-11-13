@@ -18,9 +18,11 @@ follows [Semantic Versioning](https://semver.org/).
 - The panel is rewritten as one React Native front end shared by iTerm2 (through
   React Native Web) and Paseo. It reaches its host only through a small `Host`
   interface. `ui/dist` holds the committed web bundle; `panel/` is gone.
-- Graph is redrawn as a lane graph, the way a git graph draws history: one line
-  per item, a lane per dependency, a task's steps on a trunk below it. Steps
-  show until a task is folded.
+- List and Graph are one list now, drawn the way a git graph draws history: one
+  line per item, a lane per dependency, a task's steps on a trunk below it.
+  Steps show until a task is folded, and pressing an item's dot completes it.
+  A line shows the title, the status and the step count; origin, driver,
+  what it waits for and the dates are in the details.
 - Row actions (add a step, copy the title, delete) moved from the right-click
   menu into the details. Hover tooltips are gone.
 - The board keeps refreshing while a field is being edited and keeps what was

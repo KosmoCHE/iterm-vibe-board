@@ -1,4 +1,4 @@
-// The selected item, below the board: text at first, controls after Edit or a double press.
+// The selected item, below the list: text at first, controls after Edit or a double press.
 
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -10,7 +10,6 @@ export function Inspector() {
   const { c, m, ui, set, select, remove, copyTitle, jumpTo } = useBoard();
   const item = ui.selected ? m.byId[ui.selected] : null;
   if (!item) return null;
-  const graph = ui.view === "graph";
   const parent = item.parent ? m.byId[item.parent] : null;
   const actions: [string, () => void][] = [
     ["Copy title", () => copyTitle(item)],
@@ -36,11 +35,9 @@ export function Inspector() {
             <Icon name="X" size={14} />
           </Pressable>
         </View>
-        {!graph && (
-          <T size={10} lines={1} color={c.foregroundMuted}>
-            {`${m.shortId(item.id)} · ${item.origin} · by @${m.whoName(item.created_by)} · ${projectPath(item.project)}`}
-          </T>
-        )}
+        <T size={10} lines={1} color={c.foregroundMuted}>
+          {`${m.shortId(item.id)} · ${item.origin} · by @${m.whoName(item.created_by)} · ${projectPath(item.project)}`}
+        </T>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
           {actions.map(([label, run]) => (
             <Pressable key={label} accessibilityRole="button" onPress={run}>
@@ -50,7 +47,7 @@ export function Inspector() {
             </Pressable>
           ))}
         </View>
-        {graph && parent && (
+        {parent && (
           <Pressable accessibilityRole="button" onPress={() => jumpTo(parent)}>
             <T size={10} color={c.accent}>
               {"‹ " + parent.title}
@@ -110,8 +107,7 @@ function Editor({ item }: { item: Item }) {
 }
 
 function Details({ item }: { item: Item }) {
-  const { c, m, ui } = useBoard();
-  const graph = ui.view === "graph";
+  const { c, m } = useBoard();
   return (
     <>
       {item.description !== "" && (
@@ -120,35 +116,23 @@ function Details({ item }: { item: Item }) {
         </T>
       )}
       <Row label="Status">
-        {graph && <Complete item={item} />}
+        <Complete item={item} />
         <T color={statusColor(c, item.status)}>{m.board.labels[item.status]}</T>
       </Row>
-      {!graph && (
-        <>
-          <Row label="Created">
-            <T selectable>{when(item.created_at)}</T>
-          </Row>
-          {item.started_at && (
-            <Row label="Started">
-              <T selectable>{when(item.started_at)}</T>
-            </Row>
-          )}
-          {item.done_at && (
-            <Row label="Done">
-              <T selectable>{when(item.done_at)}</T>
-            </Row>
-          )}
-        </>
-      )}
-      <Row label="Driver">
-        {graph && item.driver ? (
-          <DriverChip item={item} />
-        ) : (
-          <T selectable color={item.driver ? c.foreground : c.foregroundMuted}>
-            {item.driver ? "@" + m.whoName(item.driver) : "no session"}
-          </T>
-        )}
+      <Row label="Created">
+        <T selectable>{when(item.created_at)}</T>
       </Row>
+      {item.started_at && (
+        <Row label="Started">
+          <T selectable>{when(item.started_at)}</T>
+        </Row>
+      )}
+      {item.done_at && (
+        <Row label="Done">
+          <T selectable>{when(item.done_at)}</T>
+        </Row>
+      )}
+      <Row label="Driver">{item.driver ? <DriverChip item={item} /> : <T color={c.foregroundMuted}>no session</T>}</Row>
       {item.next !== "" && (
         <Row label="Next">
           <T selectable>{item.next}</T>
@@ -166,7 +150,7 @@ function Details({ item }: { item: Item }) {
           <T selectable>{item.due}</T>
         </Row>
       )}
-      {graph && <Links item={item} />}
+      <Links item={item} />
     </>
   );
 }
@@ -187,7 +171,7 @@ function Dependency({ dep }: { dep: Item }) {
   );
 }
 
-// Graph view only: the steps of the selected task and what it waits for.
+// The steps of the selected task and what it waits for.
 function Links({ item }: { item: Item }) {
   const { c, m, ui, set, select } = useBoard();
   const { done, active } = m.levelItems(scopedChildren(m.scopeItems(ui.tab, ui.filter))[item.id] || []);

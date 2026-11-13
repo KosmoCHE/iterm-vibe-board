@@ -2,12 +2,6 @@
 
 import type { BoardData, Item, Pane, Status, Tab } from "./host";
 
-export const PROGRESS_WORDS: Record<string, string> = {
-  plan: "planned",
-  issue: "issues",
-  added: "added",
-};
-
 /** A project sees its own items and those filed under its sub-directories. */
 export function within(path: string, project: string): boolean {
   return path === project || path.startsWith(project.replace(/\/+$/, "") + "/");
@@ -82,8 +76,6 @@ export function graphFlows(items: Item[], dependencies: Map<string, Set<string>>
 /** The board as seen from the panes it sits beside: the focused one, or those the host names. */
 export function model(board: BoardData, beside?: (pane: Pane) => boolean) {
   const byId: Record<string, Item> = Object.fromEntries(board.items.map((i) => [i.id, i]));
-  const children: Record<string, Item[]> = {};
-  for (const it of board.items) if (it.parent) (children[it.parent] = children[it.parent] || []).push(it);
 
   // Project and Session follow the sessions running beside the board, newest first.
   // A pane record gets its session, project and start time together.
@@ -151,17 +143,6 @@ export function model(board: BoardData, beside?: (pane: Pane) => boolean) {
     return options;
   }
 
-  /** Per origin over direct children: {origin: [done, total]}. */
-  function progress(id: string): Record<string, [number, number]> {
-    const out: Record<string, [number, number]> = {};
-    for (const origin of board.origins) out[origin] = [0, 0];
-    for (const it of children[id] || []) {
-      out[it.origin][1]++;
-      if (it.status === "done") out[it.origin][0]++;
-    }
-    return out;
-  }
-
   /** Is anything this item depends on still open? */
   function blocked(item: Item): boolean {
     return item.depends_on.some((d) => byId[d] && byId[d].status !== "done");
@@ -185,7 +166,7 @@ export function model(board: BoardData, beside?: (pane: Pane) => boolean) {
         ...out[n].depends_on.map((d) => out.findIndex((i) => i.id === d && i.status !== "done")),
       );
       if (last > n) {
-        // Graph can expose dependency loops. Keep the list responsive on that data too.
+        // Dependencies can loop. Keep the list responsive on that data too.
         const key = out.map((i) => i.id).join(",");
         if (seen.has(key)) break;
         seen.add(key);
@@ -206,7 +187,6 @@ export function model(board: BoardData, beside?: (pane: Pane) => boolean) {
   return {
     board,
     byId,
-    children,
     focus,
     scopeItems,
     paneOf,
@@ -214,7 +194,6 @@ export function model(board: BoardData, beside?: (pane: Pane) => boolean) {
     projectName,
     shortId,
     driverOptions,
-    progress,
     blocked,
     shownStatus,
     levelItems,

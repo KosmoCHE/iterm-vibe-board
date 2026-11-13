@@ -49,7 +49,7 @@ const host: Host = {
     statusDanger: "var(--danger)",
   },
   Icon,
-  prefs: saved ? (JSON.parse(saved) as Prefs) : DEFAULT_PREFS,
+  prefs: { ...DEFAULT_PREFS, ...(saved ? (JSON.parse(saved) as Partial<Prefs>) : {}) }, // an older build saved other fields
   savePrefs: (prefs) => localStorage.setItem(PREFS, JSON.stringify(prefs)),
   copyText: (text) => navigator.clipboard.writeText(text),
   jump: async (pane) => {

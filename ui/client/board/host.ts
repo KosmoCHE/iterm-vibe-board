@@ -6,7 +6,6 @@ import type { ComponentType } from "react";
 
 export type Status = "todo" | "doing" | "waiting" | "later" | "done";
 export type Tab = "global" | "project" | "session";
-export type ViewMode = "list" | "graph";
 
 export interface Item {
   id: string;
@@ -74,21 +73,16 @@ export type IconName =
   | "CircleDashed"
   | "CircleDot"
   | "Clock3"
-  | "Folder"
-  | "List"
   | "Plus"
-  | "Workflow"
   | "X";
 
 /** What the board remembers between visits. A type, not an interface: hosts store it as JSON. */
 export type Prefs = {
   tab: Tab;
-  view: ViewMode;
-  fold: Record<string, boolean>;
-  graphOpen: Record<string, boolean>;
+  open: Record<string, boolean>; // "scope:task": false once that task's steps are folded
 };
 
-export const DEFAULT_PREFS: Prefs = { tab: "global", view: "list", fold: {}, graphOpen: {} };
+export const DEFAULT_PREFS: Prefs = { tab: "global", open: {} };
 
 export interface Commands {
   undo(): void;
