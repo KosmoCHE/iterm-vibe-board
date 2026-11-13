@@ -47,12 +47,12 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
 
 ## 做什么
 
-- **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibe Board），以及 Paseo 里每个 agent 旁边：
+- **一个面板三页**，在 iTerm2 侧栏（View › Toolbelt › Vibe Board），以及 Paseo 里每个工作区的侧栏：
   - **Global**：所有的事，列表按项目分组；一个筛选框可以只看一个项目或一个 session。
   - **Project**：聚焦 pane 里的会话所在项目的事（按 Claude Code 启动目录算），子目录下登记的事也算在内。
   - **Session**：聚焦 pane 里的会话正在推的事。
 
-  Project 和 Session 绑定你点进的 pane，和 iTerm2 的 Notes 一样；在 Paseo 里跟随面板旁边的那个 agent。
+  Project 和 Session 绑定你点进的 pane，和 iTerm2 的 Notes 一样；在 Paseo 里覆盖面板所在工作区的所有 agent。
 - **列表与图视图切换**：Graph 按 git graph 画提交历史的方式画依赖结构。每件事一行，前置在上、等它的在下；每件事一个圆点，每条依赖一条轨道：几件事等同一件就分叉，一件事等几件就汇合，跨 task 也一样。task 的步骤从它下方一条淡色主干上分出来。选中一件事会点亮它上游和下游的全部链路。折叠项的依赖保留为虚线轨道，范围外的前置用一个箭头标记。已完成的默认折叠。Graph 用细节换结构：只显示标题、状态和步骤计数，其余点一下看详情。视图及折叠状态会记住，网页外壳的图标使用随项目提供的 Lucide 子集。
 - **每件事记**：状态（`todo`、`doing`、`waiting`、`later`、`done`）、推进者（哪个 session 在推，也可以没有）、来源、谁建的、子步骤、依赖（可跨项目）、下一步、在等谁、日期。
 - **来源说的是这件事为什么存在**，事情堆起来时原计划仍然看得见：
@@ -80,7 +80,7 @@ git clone https://github.com/KosmoCHE/iterm-vibe-board && cd iterm-vibe-board
 paseo plugin install "$PWD/ui"
 ```
 
-打开 Settings › Plugins › Enable plugins，然后在 agent 旁边那个侧栏的 `+` 里加上 Vibe Board。插件读的是同一个本地服务，所以先跑 `./install.sh`。
+打开 Settings › Plugins › Enable plugins，然后打开工作区的 Explorer 侧栏，在它的 `+` 里加上 Vibe Board。插件读的是同一个本地服务，所以先跑 `./install.sh`。
 
 数据在 `~/.iterm-vibe-board/`：每件事一个 JSON 文件，放在 `projects/<key>/items/` 下，另有一张 pane 到会话的小表。设 `VIBEBOARD_HOME` 可以换目录。
 

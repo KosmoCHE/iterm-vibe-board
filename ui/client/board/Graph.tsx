@@ -42,7 +42,7 @@ interface Edge {
 
 function scopeKey(ui: Ui, m: Model): string {
   const f = m.focus;
-  return ui.tab + ":" + (ui.tab === "global" ? ui.filter : ui.tab === "project" ? f.project : f.session);
+  return ui.tab + ":" + (ui.tab === "global" ? ui.filter : (ui.tab === "project" ? f.projects : f.sessions).join("|"));
 }
 
 /** The folds to open so that an item shows in the graph. `openTask` also unfolds a task's own steps. */

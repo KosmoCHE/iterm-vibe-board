@@ -57,8 +57,8 @@ export function Empty() {
         ? "Nothing on the board."
         : "No items yet. Start a session in a project, then add items here.";
     }
-  } else if (ui.tab === "project") text = f.project ? "Nothing in this project yet." : "Focus a pane that runs a session.";
-  else text = f.session ? "This session pushes nothing yet." : "Focus a pane that runs a session.";
+  } else if (!f.sessions.length) text = "No session is running here.";
+  else text = ui.tab === "project" ? "Nothing in this project yet." : "This session pushes nothing yet.";
   return (
     <T size={12} color={c.foregroundMuted} style={{ marginVertical: 12, marginHorizontal: 14 }}>
       {text}

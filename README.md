@@ -27,7 +27,7 @@ items are yours, agents are just the ones pushing them.
 ## What it does
 
 - **One panel, three tabs** in the iTerm2 toolbelt (View › Toolbelt › Vibe Board)
-  and beside each agent in Paseo:
+  and in the sidebar of each Paseo workspace:
   - **Global** – everything, grouped by project in List. A select narrows it to one
     project or one session.
   - **Project** – the items of the project the focused pane's session was
@@ -36,7 +36,7 @@ items are yours, agents are just the ones pushing them.
   - **Session** – the items the focused pane's session is pushing.
 
   Project and Session are bound to the pane you click into, like iTerm2's
-  Notes. In Paseo they follow the agent the panel sits beside.
+  Notes. In Paseo they cover the agents of the workspace the panel is in.
 - **List and Graph views**: Graph draws the dependency structure the way a git
   graph draws history. One line per item, prerequisites above what waits for
   them, a dot per item and a lane per dependency: lanes split where several
@@ -93,9 +93,9 @@ Rerun after `git pull`; `./install.sh --uninstall` takes it all out again.
 paseo plugin install "$PWD/ui"
 ```
 
-Turn on Settings › Plugins › Enable plugins, then add Vibe Board from the `+` of
-the sidebar beside an agent. The plugin reads the same local server, so run
-`./install.sh` first.
+Turn on Settings › Plugins › Enable plugins, then open a workspace's Explorer
+sidebar and add Vibe Board from its `+`. The plugin reads the same local server,
+so run `./install.sh` first.
 
 Data lives in `~/.iterm-vibe-board/`: one JSON file per item under
 `projects/<key>/items/`, plus a small map from panes to sessions. Set

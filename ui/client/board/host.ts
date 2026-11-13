@@ -33,6 +33,7 @@ export interface Pane {
   host?: string; // "paseo" for a Paseo agent, absent for an iTerm2 pane
   session?: string;
   project?: string;
+  started_at?: string;
   ended_at?: string | null;
   name: string;
   alive: boolean;
@@ -103,8 +104,11 @@ export interface Host {
   prefs: Prefs;
   savePrefs(prefs: Prefs): void;
   copyText(text: string): Promise<void>;
-  /** The pane this board sits beside. Absent: the pane the server reports as focused. */
-  pane?: string;
+  /**
+   * Is this a pane the board sits beside? Project and Session show what runs in those.
+   * Absent: the one pane the server reports as focused.
+   */
+  beside?(pane: Pane): boolean;
   /** Bring the user to a live pane. */
   jump(pane: Pane): Promise<void>;
   /** Bind the host's keyboard shortcuts to the board's commands; returns the unbind. */

@@ -79,19 +79,20 @@ export function graphFlows(items: Item[], dependencies: Map<string, Set<string>>
   return flows;
 }
 
-/** The board as seen from one pane. */
-export function model(board: BoardData, pane: string | null) {
+/** The board as seen from the panes it sits beside: the focused one, or those the host names. */
+export function model(board: BoardData, beside?: (pane: Pane) => boolean) {
   const byId: Record<string, Item> = Object.fromEntries(board.items.map((i) => [i.id, i]));
   const children: Record<string, Item[]> = {};
   for (const it of board.items) if (it.parent) (children[it.parent] = children[it.parent] || []).push(it);
 
-  // Project and Session follow the pane the board sits beside.
-  const here = pane ? board.panes[pane] : undefined;
-  const running = here && !here.ended_at ? here : undefined;
+  // Project and Session follow the sessions running beside the board, newest first.
+  // A pane record gets its session, project and start time together.
+  const here = Object.values(board.panes)
+    .filter((p) => p.session && !p.ended_at && (beside ? beside(p) : p.pane === board.focus.pane))
+    .sort((x, y) => (y.started_at || "").localeCompare(x.started_at || ""));
   const focus = {
-    pane,
-    session: (running && running.session) || null,
-    project: (running && running.project) || null,
+    sessions: [...new Set(here.map((p) => p.session!))],
+    projects: [...new Set(here.map((p) => p.project!))],
   };
 
   function scopeItems(tab: Tab, filter: string): Item[] {
@@ -102,11 +103,8 @@ export function model(board: BoardData, pane: string | null) {
       if (kind === "who") return all.filter((i) => i.driver === value);
       return all;
     }
-    if (tab === "project") {
-      const project = focus.project;
-      return project ? all.filter((i) => within(i.project, project)) : [];
-    }
-    return focus.session ? all.filter((i) => i.driver === focus.session) : [];
+    if (tab === "project") return all.filter((i) => focus.projects.some((p) => within(i.project, p)));
+    return all.filter((i) => i.driver !== null && focus.sessions.includes(i.driver));
   }
 
   function paneOf(who: string): Pane | null {
@@ -114,7 +112,7 @@ export function model(board: BoardData, pane: string | null) {
     const matches = Object.values(board.panes).filter((p) => p.session === who);
     // A resumed session can leave old pane records behind. Prefer its current pane.
     return (
-      matches.find((p) => p.pane === pane && !p.ended_at) ||
+      matches.find((p) => here.includes(p)) ||
       matches.find((p) => p.alive && !p.ended_at) ||
       matches.find((p) => !p.ended_at && p.name) ||
       matches.find((p) => p.name) ||

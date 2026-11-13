@@ -84,8 +84,7 @@ export function Board({ host }: { host: Host }) {
     remembered.current = true;
   }, [ui.tab, ui.view, ui.fold, ui.graphOpen]);
 
-  const pane = board && (host.pane ?? board.focus.pane);
-  const m = useMemo(() => board && model(board, pane), [board, pane]);
+  const m = useMemo(() => board && model(board, host.beside), [board, host.beside]);
 
   function change(method: "POST" | "PATCH", path: string, body?: unknown): Promise<unknown> {
     if (sync.current.down) return Promise.reject(new Error("看板已断线，请等待重新连接后再修改任务"));
@@ -152,7 +151,7 @@ export function Board({ host }: { host: Host }) {
         parent,
         origin: "plan",
         created_by: board!.me,
-        driver: ui.tab === "session" ? m!.focus.session : null,
+        driver: ui.tab === "session" ? m!.focus.sessions[0] : null, // the newest session here
       });
       if (parent) set((now) => ({ fold: { ...now.fold, [now.tab + ":" + parent]: true } })); // show what was just added
       notice(`Added “${title}”`);
@@ -228,7 +227,7 @@ export function Board({ host }: { host: Host }) {
   const selected = visible.some((i) => i.id === ui.selected) ? ui.selected : null;
   const shown: Ui = { ...ui, filter, selected, editing: Boolean(selected) && ui.editing };
   const ctx: Ctx = { host, c, m, ui: shown, set, patch, remove, select, jumpTo, jumpToDriver, copyTitle };
-  const canAdd = ui.tab === "global" ? Object.keys(board.projects).length > 0 : Boolean(m.focus.project);
+  const canAdd = ui.tab === "global" ? Object.keys(board.projects).length > 0 : m.focus.projects.length > 0;
 
   return (
     <BoardContext.Provider value={ctx}>
@@ -319,7 +318,7 @@ function Header({ canAdd }: { canAdd: boolean }) {
             <Icon name="Plus" size={15} />
           </Pressable>
         </View>
-        {/* Project and Session follow the pane beside the board; Global sees everything
+        {/* Project and Session follow the sessions beside the board; Global sees everything
             and can be narrowed to one project or one driver. */}
         <View style={{ flexDirection: "row", marginTop: 5, minHeight: 18 }}>
           {ui.tab === "global" && (
@@ -327,12 +326,12 @@ function Header({ canAdd }: { canAdd: boolean }) {
           )}
           {ui.tab === "project" && (
             <T size={12} lines={1} color={c.foregroundMuted}>
-              {f.project ? projectPath(f.project) : "no project here"}
+              {f.projects.length ? f.projects.map(projectPath).join(", ") : "no project here"}
             </T>
           )}
           {ui.tab === "session" && (
             <T size={12} lines={1} color={c.foregroundMuted}>
-              {f.session ? "@" + m.whoName(f.session) : "no session here"}
+              {f.sessions.length ? f.sessions.map((s) => "@" + m.whoName(s)).join(", ") : "no session here"}
             </T>
           )}
         </View>
@@ -372,10 +371,10 @@ function AddForm({ onAdd }: { onAdd: (title: string, project: string) => void })
   const parent = ui.addParent ? m.byId[ui.addParent] : null;
   const projects = Object.values(m.board.projects);
   const [title, setTitle] = useState("");
-  const [picked, setPicked] = useState(() =>
-    projects.some((p) => p.path === m.focus.project) ? m.focus.project! : projects[0].path,
+  const [picked, setPicked] = useState(
+    () => m.focus.projects.find((path) => projects.some((p) => p.path === path)) ?? projects[0].path,
   );
-  const project = parent ? parent.project : ui.tab === "global" ? picked : m.focus.project!;
+  const project = parent ? parent.project : ui.tab === "global" ? picked : m.focus.projects[0];
   const close = () => set(() => ({ adding: false, addParent: null }));
   return (
     <View style={{ gap: 6, padding: 8, borderBottomWidth: 1, borderBottomColor: c.border }}>

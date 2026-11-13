@@ -8,10 +8,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- The board runs inside Paseo as a plugin panel beside each agent
+- The board runs inside Paseo as a plugin panel in each workspace
   (`paseo plugin install <clone>/ui`). Paseo agents are recognised as panes
   through `PASEO_AGENT_ID`: their sessions are attributed, named and shown as
-  live, and Project and Session follow the agent the panel sits beside.
+  live, and Project and Session cover the agents of the panel's workspace.
 
 ### Changed
 
