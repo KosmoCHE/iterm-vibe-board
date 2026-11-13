@@ -48,7 +48,8 @@ export interface BoardData {
   statuses: Status[];
   origins: string[];
   labels: Record<Status, string>;
-  settings: { archive_after_days: number | null }; // null: finished tasks stay on the board
+  /** Absent when the panel is newer than the server it talks to: the two install separately. */
+  settings?: { archive_after_days: number | null }; // null: finished tasks stay on the board
   me: string;
 }
 

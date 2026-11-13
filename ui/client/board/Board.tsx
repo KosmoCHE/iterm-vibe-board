@@ -293,13 +293,16 @@ function filterOptions(m: Model): Option[] {
   return options;
 }
 
+/** The offered ages, plus what config.json holds when that is none of them. */
+function archiveChoices(days: number | null): number[] {
+  return days === null || ARCHIVE_AFTER.includes(days) ? ARCHIVE_AFTER : [...ARCHIVE_AFTER, days].sort((x, y) => x - y);
+}
+
 function Header({ canAdd, onArchiveAfter }: { canAdd: boolean; onArchiveAfter: (days: number | null) => void }) {
   const { c, m, ui, set } = useBoard();
   const [settings, setSettings] = useState(false);
   const f = m.focus;
-  const days = m.board.settings.archive_after_days;
-  // What config.json holds may be a number the list does not offer.
-  const offered = days === null || ARCHIVE_AFTER.includes(days) ? ARCHIVE_AFTER : [...ARCHIVE_AFTER, days].sort((x, y) => x - y);
+  const archive = m.board.settings;
   return (
     <View style={{ paddingTop: 6, paddingHorizontal: 8, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: c.border }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -327,14 +330,16 @@ function Header({ canAdd, onArchiveAfter }: { canAdd: boolean; onArchiveAfter: (
         >
           <Icon name="Plus" size={15} />
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          accessibilityState={{ expanded: settings }}
-          onPress={() => setSettings(!settings)}
-        >
-          <Icon name="Settings" size={14} color={settings ? c.foreground : c.foregroundMuted} />
-        </Pressable>
+        {archive && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            accessibilityState={{ expanded: settings }}
+            onPress={() => setSettings(!settings)}
+          >
+            <Icon name="Settings" size={14} color={settings ? c.foreground : c.foregroundMuted} />
+          </Pressable>
+        )}
       </View>
       {/* Project and Session follow the sessions beside the board; Global sees everything
           and can be narrowed to one project or one driver. */}
@@ -353,15 +358,15 @@ function Header({ canAdd, onArchiveAfter }: { canAdd: boolean; onArchiveAfter: (
           </T>
         )}
       </View>
-      {settings && (
+      {settings && archive && (
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: 5 }}>
           {/* Level with the select's own text, also while its list is open. */}
           <T color={c.foregroundMuted} style={{ marginTop: 4 }}>
             Archive finished tasks after
           </T>
           <Select
-            value={days === null ? "" : String(days)}
-            options={[...offered.map((n) => ({ value: String(n), label: n === 1 ? "1 day" : `${n} days` })), { value: "", label: "never" }]}
+            value={archive.archive_after_days === null ? "" : String(archive.archive_after_days)}
+            options={[...archiveChoices(archive.archive_after_days).map((n) => ({ value: String(n), label: n === 1 ? "1 day" : `${n} days` })), { value: "", label: "never" }]}
             onChange={(value) => onArchiveAfter(value ? Number(value) : null)}
           />
         </View>
