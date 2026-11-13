@@ -21,7 +21,7 @@ from urllib.parse import parse_qs, urlparse
 
 from vibeboard import store
 
-PANEL = Path(__file__).resolve().parent.parent / "panel"
+PANEL = Path(__file__).resolve().parent.parent / "ui" / "dist"  # built by ui/web/build.mjs
 IT2 = shutil.which("it2") or "/Applications/iTerm.app/Contents/Resources/utilities/it2"
 PASEO = shutil.which("paseo") or "/Applications/Paseo.app/Contents/Resources/bin/paseo"
 LABELS = {

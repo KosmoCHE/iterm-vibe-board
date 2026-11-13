@@ -15,3 +15,9 @@ jobs:
       - run: pip install ruff pytest
       - run: ruff check . && ruff format --check .
       - run: pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci && npm run typecheck && npm run build
+        working-directory: ui
+      - run: git diff --exit-code ui/dist
