@@ -47,7 +47,7 @@ def test_rename_changes_version_without_changing_tasks_or_focus(board_server, mo
     assert after != before
     assert board["version"] == after
     assert board["panes"]["PANE"]["name"] == "after"
-    assert board["focus"] == {"pane": "PANE", "session": "session", "project": "/example"}
+    assert board["focus"] == {"pane": "PANE"}
     assert board["items"] == [task]
     assert store.version() == stored_version
     assert len(lookups) == 2
@@ -86,7 +86,7 @@ def test_focus_switch_preserves_reassigned_task_ownership(board_server, monkeypa
     ]:
         board_server.focus = pane
         board = board_server.board()
-        assert board["focus"]["session"] == session
+        assert board["focus"] == {"pane": pane}
         assert {i["id"] for i in board["items"] if session and i["driver"] == session} == {
             i["id"] for i in expected
         }
@@ -144,6 +144,43 @@ def test_jump_refuses_a_paseo_agent(tmp_path, monkeypatch):
         assert focused == []
         assert jump("iterm").status == 200
         assert focused == [[server.IT2, "session", "focus", "ITERM"]]
+    finally:
+        board.shutdown()
+        board.server_close()
+
+
+def test_the_archive_setting_is_read_and_changed_over_the_api(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIBEBOARD_HOME", str(tmp_path))
+    monkeypatch.setattr(server.BoardServer, "pane_names", lambda self: {})
+    (tmp_path / "config.json").write_text(json.dumps({"labels": {"todo": "Next"}}))
+    board = server.serve(port=0, token="test")
+    threading.Thread(target=board.serve_forever, daemon=True).start()
+    try:
+
+        def call(method, path, body=None):
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{board.server_port}{path}",
+                data=None if body is None else json.dumps(body).encode(),
+                headers={"X-Vibeboard-Token": "test"},
+                method=method,
+            )
+            return json.load(urllib.request.urlopen(request))
+
+        assert call("GET", "/api/board")["settings"] == {"archive_after_days": 7}
+        before = call("GET", "/api/version")["version"]
+        call("PATCH", "/api/settings", {"archive_after_days": 30})
+        after = call("GET", "/api/board")
+        assert after["settings"] == {"archive_after_days": 30}
+        assert after["labels"]["todo"] == "Next"  # the other settings are kept
+        assert after["version"] != before  # other open panels learn of it
+        assert board.settings_changed.is_set()
+        call("PATCH", "/api/settings", {"archive_after_days": None})
+        assert store.archive_after_days() is None
+        for bad in ({"archive_after_days": 0}, {"archive_after_days": "7"}, {}, {"labels": {}}):
+            with pytest.raises(urllib.error.HTTPError) as refused:
+                call("PATCH", "/api/settings", bad)
+            assert refused.value.code == 400
+        assert store.archive_after_days() is None
     finally:
         board.shutdown()
         board.server_close()

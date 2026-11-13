@@ -13,6 +13,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -32,6 +33,7 @@ LABELS = {
     "done": "Done",
 }
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript"}
+ARCHIVE_EVERY = 3600  # seconds between two looks for finished tasks to archive
 
 
 class BoardServer(ThreadingHTTPServer):
@@ -43,6 +45,7 @@ class BoardServer(ThreadingHTTPServer):
         self.focus: str | None = None  # pane the user is looking at, pushed by the iTerm2 script
         self._names: tuple[dict, float] = ({}, 0.0)
         self._silent: set[str] = set()  # listing commands whose failure was already reported
+        self.settings_changed = threading.Event()
 
     @property
     def url(self) -> str:
@@ -82,6 +85,13 @@ class BoardServer(ThreadingHTTPServer):
         self._names = (names, time.time())
         return names
 
+    def keep_archiving(self) -> None:
+        """Take long-finished tasks off the board: now, hourly, and when the setting changes."""
+        while True:
+            store.archive_finished()
+            self.settings_changed.wait(ARCHIVE_EVERY)
+            self.settings_changed.clear()
+
     def version(self) -> str:
         # Renaming a live session does not touch the task store.
         names = json.dumps(self.pane_names(), sort_keys=True).encode()
@@ -93,26 +103,16 @@ class BoardServer(ThreadingHTTPServer):
         for pane, info in store.panes().items():
             name = names.get(pane) or info.get("name", "")  # a stored name outlives the pane
             panes[pane] = dict(info, name=name, alive=pane in names)
-        focus = {"pane": self.focus, "session": None, "project": None}
-        info = panes.get(self.focus or "")
-        if info and not info.get("ended_at"):
-            focus.update(session=info.get("session"), project=info.get("project"))
-        labels = dict(LABELS)
-        config = store.home() / "config.json"
-        if config.is_file():
-            try:
-                labels.update(json.loads(config.read_text(encoding="utf-8")).get("labels", {}))
-            except ValueError:
-                pass
         return {
             "version": self.version(),
-            "focus": focus,
+            "focus": {"pane": self.focus},  # the panel works out what runs there
             "projects": store.projects(),
             "panes": panes,
             "items": list(store.load_all().values()),
             "statuses": store.STATUSES,
             "origins": store.ORIGINS,
-            "labels": labels,
+            "labels": {**LABELS, **store.config().get("labels", {})},
+            "settings": {"archive_after_days": store.archive_after_days()},
             "me": store.ME,
         }
 
@@ -177,7 +177,10 @@ class Handler(BaseHTTPRequestHandler):
                 }
             )
         elif url.path == "/api/board":
-            self._json(self.server.board())
+            try:
+                self._json(self.server.board())
+            except ValueError as e:  # the user's config.json does not parse
+                self._error(HTTPStatus.BAD_REQUEST, f"config.json: {e}")
         else:
             self._error(HTTPStatus.NOT_FOUND, "not found")
 
@@ -220,11 +223,18 @@ class Handler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.UNAUTHORIZED, "bad token")
             return
         parts = url.path.split("/")
-        if len(parts) != 4 or parts[1:3] != ["api", "items"]:
-            self._error(HTTPStatus.NOT_FOUND, "not found")
-            return
         try:
-            self._json(store.update(parts[3], **self._body()))
+            if url.path == "/api/settings":
+                body = self._body()
+                if set(body) != {"archive_after_days"}:
+                    raise ValueError("settings: archive_after_days is the one thing to set")
+                store.set_archive_after_days(body["archive_after_days"])
+                self.server.settings_changed.set()  # archive by the new rule right away
+                self._json(body)
+            elif len(parts) == 4 and parts[1:3] == ["api", "items"]:
+                self._json(store.update(parts[3], **self._body()))
+            else:
+                self._error(HTTPStatus.NOT_FOUND, "not found")
         except KeyError as e:
             self._error(HTTPStatus.NOT_FOUND, f"no such item {e}")
         except ValueError as e:

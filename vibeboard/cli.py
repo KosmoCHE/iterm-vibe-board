@@ -473,6 +473,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
         print(f"vibeboard panel: {server.url}", flush=True)
     if args.exit_with_stdin:
         threading.Thread(target=_exit_when_stdin_closes, daemon=True).start()
+    threading.Thread(target=server.keep_archiving, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

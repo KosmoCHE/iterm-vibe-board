@@ -4,6 +4,7 @@ import os
 import pty
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -67,6 +68,39 @@ def test_done_sets_done_at_and_archive_moves_file(tmp_home):
     assert item["id"] in store.load_all(archived=True)
     store.archive(item["id"], restore=True)
     assert set(store.load_all()) == {item["id"], step["id"]}
+
+
+def test_finished_tasks_leave_the_board_after_the_set_days(monkeypatch):
+    def finish(item, days_ago):
+        moment = datetime.now(timezone.utc) - timedelta(days=days_ago)
+        with monkeypatch.context() as clock:
+            clock.setattr(store, "now", lambda: store._iso(moment))
+            return store.update(item["id"], status="done")
+
+    old = store.create("Shipped long ago", "/tmp/proj")
+    old_step = finish(store.create("Its step", "/tmp/proj", parent=old["id"]), 9)
+    old = finish(old, 8)
+    recent = finish(store.create("Shipped yesterday", "/tmp/proj"), 1)
+    open_task = store.create("Still going", "/tmp/proj")
+    done_step = finish(store.create("Its finished step", "/tmp/proj", parent=open_task["id"]), 30)
+
+    moved = store.archive_finished()
+    assert {i["id"] for i in moved} == {old["id"], old_step["id"]}
+    assert set(store.load_all()) == {recent["id"], open_task["id"], done_step["id"]}
+    kept = store.load_all(archived=True)
+    assert kept[old["id"]]["done_at"] == old["done_at"]  # the archive records what got done
+    assert store.archive(old["id"], restore=True)[0]["id"] == old["id"]
+
+    store.set_archive_after_days(None)
+    assert store.archive_finished() == []
+    store.set_archive_after_days(60)
+    assert store.archive_finished() == []
+    store.set_archive_after_days(3)
+    assert {i["id"] for i in store.archive_finished()} == {old["id"], old_step["id"]}
+    for bad in (0, -1, 1.5, "7", True):
+        with pytest.raises(ValueError):
+            store.set_archive_after_days(bad)
+    assert store.archive_after_days() == 3
 
 
 def test_identity_follows_the_pane(monkeypatch):
