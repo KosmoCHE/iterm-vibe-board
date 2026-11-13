@@ -452,6 +452,12 @@ function ItemRow({ row, item, rail, dim, scope }: { row: Row; item: Item; rail: 
         >
           {item.title}
         </T>
+        {/* Why it exists, when it was not in the plan. */}
+        {item.origin !== "plan" && (
+          <T size={9} weight="600" color={item.origin === "issue" ? c.statusDanger : c.statusWarning}>
+            {item.origin}
+          </T>
+        )}
         {row.outside && <Icon name="ArrowUpRight" size={11} color={c.accent} />}
         {steps && (
           <T size={9} color={c.foregroundMuted}>

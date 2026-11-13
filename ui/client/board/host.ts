@@ -48,6 +48,7 @@ export interface BoardData {
   statuses: Status[];
   origins: string[];
   labels: Record<Status, string>;
+  settings: { archive_after_days: number | null }; // null: finished tasks stay on the board
   me: string;
 }
 
@@ -74,6 +75,7 @@ export type IconName =
   | "CircleDot"
   | "Clock3"
   | "Plus"
+  | "Settings"
   | "X";
 
 /** What the board remembers between visits. A type, not an interface: hosts store it as JSON. */

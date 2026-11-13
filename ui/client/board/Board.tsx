@@ -11,6 +11,7 @@ import { BoardContext, controlStyle, Icon, Select, T, Tint, useBoard } from "./p
 import type { Ctx, Option, Ui } from "./parts";
 
 const UNDO_DEPTH = 20;
+const ARCHIVE_AFTER = [1, 3, 7, 14, 30, 90]; // days, offered in the settings
 const TABS: [Tab, string][] = [
   ["global", "Global"],
   ["project", "Project"],
@@ -36,6 +37,7 @@ export function Board({ host }: { host: Host }) {
   const sync = useRef({
     host,
     polling: false,
+    again: false, // a change landed while a poll was under way
     down: false,
     version: null as string | null,
     focus: undefined as string | null | undefined,
@@ -46,9 +48,13 @@ export function Board({ host }: { host: Host }) {
   const notice = (text: string) => setMessage({ text, error: false });
   const showError = (e: unknown) => setMessage({ text: e instanceof Error ? e.message : String(e), error: true });
 
-  async function poll() {
+  // `changed`: something was just written, so a poll already under way may have missed it.
+  async function poll(changed = false) {
     const s = sync.current;
-    if (s.polling) return;
+    if (s.polling) {
+      s.again = s.again || changed;
+      return;
+    }
     s.polling = true;
     try {
       const { version, focus } = (await s.host.request("GET", "/api/version")) as { version: string; focus: string | null };
@@ -67,12 +73,16 @@ export function Board({ host }: { host: Host }) {
       showError(e);
     } finally {
       s.polling = false;
+      if (s.again) {
+        s.again = false;
+        poll();
+      }
     }
   }
 
   useEffect(() => {
     poll();
-    const timer = setInterval(poll, 1000);
+    const timer = setInterval(() => poll(), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -96,14 +106,16 @@ export function Board({ host }: { host: Host }) {
   async function patch(id: string, fields: Partial<Item>, undoable = true) {
     const before = m!.byId[id];
     try {
-      await change("PATCH", "/api/items/" + id, fields);
+      const item = (await change("PATCH", "/api/items/" + id, fields)) as Item;
+      // Show it at once; the refresh that follows brings whatever else the change touched.
+      setBoard((now) => now && { ...now, items: now.items.map((i) => (i.id === id ? item : i)) });
       if (undoable && before) {
         const previous: Record<string, unknown> = {};
         for (const key of Object.keys(fields) as (keyof Item)[]) previous[key] = before[key];
         remember({ id, fields: previous, title: before.title });
         notice(`Changed “${before.title}”`);
       }
-      await poll();
+      await poll(true);
     } catch (e) {
       showError(e);
     }
@@ -116,7 +128,7 @@ export function Board({ host }: { host: Host }) {
       remember({ id: item.id, restore: true, title: item.title });
       setUi((now) => (now.selected === item.id ? { ...now, selected: null, editing: false } : now));
       notice(`Deleted “${item.title}”` + (ids.length > 1 ? ` and ${ids.length - 1} steps` : "") + " — Undo brings it back");
-      await poll();
+      await poll(true);
     } catch (e) {
       showError(e);
     }
@@ -129,7 +141,7 @@ export function Board({ host }: { host: Host }) {
     if ("restore" in last) {
       try {
         await change("POST", `/api/items/${last.id}/restore`);
-        await poll();
+        await poll(true);
         notice(`Restored “${last.title}”`);
       } catch (e) {
         showError(e);
@@ -153,7 +165,17 @@ export function Board({ host }: { host: Host }) {
       });
       if (parent) set((now) => reveal(now, m!, m!.byId[parent], true)); // show what was just added
       notice(`Added “${title}”`);
-      await poll();
+      await poll(true);
+    } catch (e) {
+      showError(e);
+    }
+  }
+
+  async function archiveAfter(days: number | null) {
+    try {
+      await change("PATCH", "/api/settings", { archive_after_days: days });
+      notice(days === null ? "Finished tasks stay on the board" : `Finished tasks are archived after ${days} ${days === 1 ? "day" : "days"}`);
+      await poll(true);
     } catch (e) {
       showError(e);
     }
@@ -230,7 +252,7 @@ export function Board({ host }: { host: Host }) {
             </T>
           </View>
         )}
-        <Header canAdd={canAdd && !down} />
+        <Header canAdd={canAdd && !down} onArchiveAfter={archiveAfter} />
         <View style={{ flex: 1, pointerEvents: down ? "none" : "auto" }}>
           {ui.adding && canAdd && <AddForm onAdd={add} />}
           <ScrollView style={{ flex: 1, opacity: down ? 0.5 : 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
@@ -271,9 +293,13 @@ function filterOptions(m: Model): Option[] {
   return options;
 }
 
-function Header({ canAdd }: { canAdd: boolean }) {
+function Header({ canAdd, onArchiveAfter }: { canAdd: boolean; onArchiveAfter: (days: number | null) => void }) {
   const { c, m, ui, set } = useBoard();
+  const [settings, setSettings] = useState(false);
   const f = m.focus;
+  const days = m.board.settings.archive_after_days;
+  // What config.json holds may be a number the list does not offer.
+  const offered = days === null || ARCHIVE_AFTER.includes(days) ? ARCHIVE_AFTER : [...ARCHIVE_AFTER, days].sort((x, y) => x - y);
   return (
     <View style={{ paddingTop: 6, paddingHorizontal: 8, paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: c.border }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -301,6 +327,14 @@ function Header({ canAdd }: { canAdd: boolean }) {
         >
           <Icon name="Plus" size={15} />
         </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          accessibilityState={{ expanded: settings }}
+          onPress={() => setSettings(!settings)}
+        >
+          <Icon name="Settings" size={14} color={settings ? c.foreground : c.foregroundMuted} />
+        </Pressable>
       </View>
       {/* Project and Session follow the sessions beside the board; Global sees everything
           and can be narrowed to one project or one driver. */}
@@ -319,6 +353,19 @@ function Header({ canAdd }: { canAdd: boolean }) {
           </T>
         )}
       </View>
+      {settings && (
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: 5 }}>
+          {/* Level with the select's own text, also while its list is open. */}
+          <T color={c.foregroundMuted} style={{ marginTop: 4 }}>
+            Archive finished tasks after
+          </T>
+          <Select
+            value={days === null ? "" : String(days)}
+            options={[...offered.map((n) => ({ value: String(n), label: n === 1 ? "1 day" : `${n} days` })), { value: "", label: "never" }]}
+            onChange={(value) => onArchiveAfter(value ? Number(value) : null)}
+          />
+        </View>
+      )}
     </View>
   );
 }

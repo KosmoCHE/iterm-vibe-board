@@ -58,7 +58,14 @@ items are yours, agents are just the ones pushing them.
   - `added` (+) – new scope added after the plan; ignore it and the plan still
     finishes.
 
-  A task shows `2/4`: done/total over its direct sub-steps.
+  A task shows `2/4`: done/total over its direct sub-steps. A line that is
+  not from the plan carries its `issue` or `added` mark.
+- **Finished tasks leave the board after a week.** A task that has been done
+  for longer than the set number of days is archived with its steps, so the
+  board stays small and quick. The gear at the top right sets the number of
+  days, or never. The archive keeps everything, done times included:
+  `vibeboard list --archived` reads it and `vibeboard archive --restore <id>`
+  brings a task back.
 - **You edit in the panel.** Press an item's dot to tick it off, press an item for details (adding a
   step, copying the title and deleting are there), press it twice to edit, `+`
   at the top right to add, Undo (⌘Z in iTerm2) to take a change back. Press a

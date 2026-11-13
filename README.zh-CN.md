@@ -60,7 +60,8 @@ agent 那一侧的任务清单（Claude Code 自带的 `TaskCreate`，以及大�
   - `issue`（⚡）：半路冒出来的问题，不处理原计划走不下去；
   - `added`（+）：计划定了以后新加的需求，不处理原计划照样能完成。
 
-  task 那一行显示 `2/4`：直接子步骤的「做完/总数」。
+  task 那一行显示 `2/4`：直接子步骤的「做完/总数」。不在原计划里的事，行尾带 `issue` 或 `added` 标记。
+- **做完的任务一周后离开看板**：任务完成超过设定的天数，就连同步骤一起归档，看板保持小而快。右上角的齿轮可以改天数，或者设成从不归档。归档里什么都留着，包括完成时间：`vibeboard list --archived` 查看，`vibeboard archive --restore <id>` 取回。
 - **你在面板里改**：点圆点勾掉、点一下看详情（加步骤、复制标题、删除都在详情里）、连点两下改、右上角 `+` 新增、Undo 撤销（iTerm2 里也可以 ⌘Z）。点会话标记跳到那个 pane 或 agent；会话结束标记变灰，事可以交给别的会话。
 - **agent 用 `vibeboard` 命令行改**。`vibeboard instructions` 打印规则：动手前把计划写成子步骤；计划外的事先登记再处理；绕路结束后说一句下一条计划是什么。会话靠它所在的 pane 或 Paseo agent 识别。
 - **Claude Code 适配层**：一个装着这些规则的 skill，加两个 hook（`SessionStart`、`SessionEnd`）把 pane 对应到会话。见 [adapters/claude-code](adapters/claude-code/README.md)。
