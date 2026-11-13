@@ -46,7 +46,6 @@ export interface BoardData {
   panes: Record<string, Pane>;
   items: Item[];
   statuses: Status[];
-  origins: string[];
   labels: Record<Status, string>;
   /** Absent when the panel is newer than the server it talks to: the two install separately. */
   settings?: { archive_after_days: number | null }; // null: finished tasks stay on the board
@@ -57,7 +56,6 @@ export interface Colors {
   foreground: string;
   foregroundMuted: string;
   surface0: string; // the panel
-  surface1: string; // cards
   surface2: string; // controls and badges
   border: string;
   accent: string;
