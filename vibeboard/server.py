@@ -88,7 +88,10 @@ class BoardServer(ThreadingHTTPServer):
     def keep_archiving(self) -> None:
         """Take long-finished tasks off the board: now, hourly, and when the setting changes."""
         while True:
-            store.archive_finished()
+            try:
+                store.archive_finished()
+            except ValueError as e:  # config.json does not parse: look again once it is mended
+                print(f"vibeboard: nothing archived: {e}", file=sys.stderr, flush=True)
             self.settings_changed.wait(ARCHIVE_EVERY)
             self.settings_changed.clear()
 
@@ -110,7 +113,6 @@ class BoardServer(ThreadingHTTPServer):
             "panes": panes,
             "items": list(store.load_all().values()),
             "statuses": store.STATUSES,
-            "origins": store.ORIGINS,
             "labels": {**LABELS, **store.config().get("labels", {})},
             "settings": {"archive_after_days": store.archive_after_days()},
             "me": store.ME,
@@ -180,7 +182,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self._json(self.server.board())
             except ValueError as e:  # the user's config.json does not parse
-                self._error(HTTPStatus.BAD_REQUEST, f"config.json: {e}")
+                self._error(HTTPStatus.BAD_REQUEST, str(e))
         else:
             self._error(HTTPStatus.NOT_FOUND, "not found")
 
