@@ -37,6 +37,18 @@ ARCHIVE_EVERY = 3600  # seconds between two looks for finished tasks to archive
 SETTINGS = {"archive_after_days": store.set_archive_after_days, "text_size": store.set_text_size}
 
 
+def note(text: str) -> None:
+    """A line on stderr for whoever started the server.
+
+    iTerm2 can quit and leave its AutoLaunch script, and this server under it, running
+    with nobody reading stderr. The line is lost then; the request it came from is not.
+    """
+    try:
+        print(text, file=sys.stderr, flush=True)
+    except OSError:
+        pass
+
+
 class BoardServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -60,7 +72,7 @@ class BoardServer(ThreadingHTTPServer):
             listed = json.loads(out.stdout)
         except (OSError, ValueError, subprocess.TimeoutExpired) as e:
             if command[0] not in self._silent:  # say it once, not every refresh
-                print(f"vibeboard: {' '.join(command)} failed: {e!r}", file=sys.stderr, flush=True)
+                note(f"vibeboard: {' '.join(command)} failed: {e!r}")
             self._silent.add(command[0])
             return []
         self._silent.discard(command[0])
@@ -95,7 +107,7 @@ class BoardServer(ThreadingHTTPServer):
             try:
                 store.archive_finished()
             except ValueError as e:  # config.json does not parse: look again once it is mended
-                print(f"vibeboard: nothing archived: {e}", file=sys.stderr, flush=True)
+                note(f"vibeboard: nothing archived: {e}")
             self.settings_changed.wait(ARCHIVE_EVERY)
             self.settings_changed.clear()
 

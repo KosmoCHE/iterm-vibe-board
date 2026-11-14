@@ -121,6 +121,25 @@ def test_paseo_agents_are_listed_once_one_is_on_the_board(board_server, monkeypa
     assert panes["ITERM"]["alive"] is True
 
 
+def test_a_listing_that_fails_with_nobody_reading_stderr_still_answers(board_server, monkeypatch):
+    # iTerm2 quit: it2 cannot reach it, and the stderr it read is gone.
+    class Gone:
+        def write(self, text):
+            raise BrokenPipeError(32, "Broken pipe")
+
+        def flush(self):
+            raise BrokenPipeError(32, "Broken pipe")
+
+    def listing(command, **kwargs):
+        return subprocess.CompletedProcess(command, 1, stdout="")
+
+    monkeypatch.setattr(server.subprocess, "run", listing)
+    monkeypatch.setattr(server.sys, "stderr", Gone())
+    assert board_server.pane_names() == {}
+    board_server._names = ({}, 0.0)
+    assert board_server.version()  # asked again, it still answers
+
+
 def test_panels_asking_at_once_share_one_listing(board_server, monkeypatch):
     asked = []
 
