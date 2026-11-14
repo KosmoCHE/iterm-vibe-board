@@ -17,6 +17,7 @@ export interface Ui {
   editing: boolean; // the inspector shows controls instead of text
   adding: boolean; // the add form is open
   addParent: string | null; // item the add form adds a step under
+  settings: boolean; // the settings dialog is open
 }
 
 export interface Ctx {
@@ -24,6 +25,8 @@ export interface Ctx {
   c: Colors;
   m: Model;
   ui: Ui;
+  /** A text size, or a length that sits beside text, at the text size the user set. */
+  scaled(n: number): number;
   set(change: (ui: Ui) => Partial<Ui>): void;
   patch(id: string, fields: Partial<Item>): void;
   remove(item: Item): void;
@@ -69,8 +72,8 @@ export function T(props: {
   style?: StyleProp<TextStyle>;
   children: ReactNode;
 }) {
-  const { c } = useBoard();
-  const size = props.size ?? 11;
+  const { c, scaled } = useBoard();
+  const size = scaled(props.size ?? 11);
   return (
     <Text
       numberOfLines={props.lines}
@@ -86,8 +89,8 @@ export function T(props: {
 }
 
 export function Icon(props: { name: IconName; size?: number; color?: string }) {
-  const { host, c } = useBoard();
-  return <host.Icon name={props.name} size={props.size ?? 12} color={props.color ?? c.foregroundMuted} />;
+  const { host, c, scaled } = useBoard();
+  return <host.Icon name={props.name} size={scaled(props.size ?? 12)} color={props.color ?? c.foregroundMuted} />;
 }
 
 /** The status icon as a checkbox: a press completes the item, or reopens a done one. */
@@ -265,7 +268,7 @@ export function Field(props: {
   multiline?: boolean;
   placeholder?: string;
 }) {
-  const { c } = useBoard();
+  const { c, scaled } = useBoard();
   const [draft, setDraft] = useState(props.value);
   const saved = useRef(props.value);
   const input = useRef<TextInput>(null);
@@ -296,7 +299,7 @@ export function Field(props: {
           setDraft(props.value);
         } else if (draft.trim() !== props.value) props.onCommit(draft.trim());
       }}
-      style={[controlStyle(c), { flex: 1, minWidth: 0, fontSize: 11, color: c.foreground }]}
+      style={[controlStyle(c), { flex: 1, minWidth: 0, fontSize: scaled(11), color: c.foreground }]}
     />
   );
 }

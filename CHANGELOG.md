@@ -14,8 +14,12 @@ follows [Semantic Versioning](https://semver.org/).
   live, and Project and Session cover the agents of the panel's workspace.
 - Finished tasks are archived with their steps once they have been done for a
   set number of days (7 by default), so the board stops re-reading them on
-  every change. The gear in the panel sets the number of days or turns it
-  off; `archive_after_days` in `config.json` holds it.
+  every change. The settings dialog behind the gear in the panel sets the
+  number of days or turns it off; `archive_after_days` in `config.json` holds
+  it.
+- One text size for the whole panel, in the same settings dialog: a percentage
+  that scales every text, icon and row together. `text_size` in `config.json`
+  holds it, so the iTerm2 panel and every Paseo panel share it.
 
 ### Changed
 

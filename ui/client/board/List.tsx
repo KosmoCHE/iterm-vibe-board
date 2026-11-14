@@ -294,10 +294,13 @@ function lanes(p: Plan, lit: (edge: Edge) => boolean) {
 
 // --- the view ---------------------------------------------------------------------
 
+// Lengths at the default text size: the rail grows with the text beside it, its lines do not.
 const LANE = 14; // distance between lanes
 const LINE = 1.5;
 const DOT = 18; // width of the slot a row's dot sits in
-const laneX = (lane: number) => DOT / 2 + lane * LANE; // centre of a lane
+const DISC = 7; // radius of the disc behind a dot, and of a turn
+const EDGE = 10; // space between a row and the sides of the panel, as around the legend
+const AFTER_DOT = 4; // space between the rail and a row's words
 
 export function List({ items }: { items: Item[] }) {
   const { c, m, ui, set } = useBoard();
@@ -308,7 +311,7 @@ export function List({ items }: { items: Item[] }) {
   const hasSteps = p.rows.some((row) => row.steps);
   return (
     <View style={{ paddingVertical: 8 }}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 3, marginHorizontal: 10, marginBottom: 6 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 3, marginHorizontal: EDGE, marginBottom: 6 }}>
         <T size={9} color={c.foregroundMuted}>
           ↓ Prerequisite above, next below
         </T>
@@ -328,7 +331,7 @@ export function List({ items }: { items: Item[] }) {
         )}
       </View>
       {p.loop && (
-        <T size={10} color={c.statusDanger} style={{ marginHorizontal: 10, marginBottom: 6 }}>
+        <T size={10} color={c.statusDanger} style={{ marginHorizontal: EDGE, marginBottom: 6 }}>
           Dependency loop: check the task and step prerequisites.
         </T>
       )}
@@ -366,18 +369,22 @@ function Empty() {
 type RailOf = ReturnType<typeof lanes>[number];
 
 function Rail({ rail, height, children }: { rail: RailOf; height: number; children: ReactNode }) {
-  const { c } = useBoard();
+  const { c, scaled } = useBoard();
   const color: Record<Paint, string> = { tree: c.foregroundMuted, plain: c.foregroundMuted, dashed: c.foregroundMuted, lit: c.accent, back: c.statusDanger };
   const widest = Math.max(rail.col, ...rail.strokes.map((stroke) => stroke.lane));
   const mid = height / 2;
+  const dot = scaled(DOT);
+  const disc = scaled(DISC);
+  const laneX = (lane: number) => dot / 2 + scaled(lane * LANE); // centre of a lane
+  const across = (stroke: { col: number; lane: number }) => Math.abs(laneX(stroke.lane) - laneX(stroke.col));
   return (
-    <View style={{ width: laneX(widest) + DOT / 2, height }}>
+    <View style={{ width: laneX(widest) + dot / 2, height }}>
       {rail.strokes.map((stroke, n) => {
         const paint = color[stroke.paint];
         const fade = stroke.paint === "lit" || stroke.paint === "back" ? 1 : stroke.paint === "tree" ? 0.3 : 0.7;
         if (stroke.kind === "tick") {
           const left = laneX(Math.min(stroke.col, stroke.lane));
-          return <View key={n} style={{ position: "absolute", left, top: mid - 0.5, width: Math.abs(stroke.lane - stroke.col) * LANE, height: 1, backgroundColor: paint, opacity: fade }} />;
+          return <View key={n} style={{ position: "absolute", left, top: mid - 0.5, width: across(stroke), height: 1, backgroundColor: paint, opacity: fade }} />;
         }
         if (stroke.kind === "line") {
           const wide = stroke.paint === "tree" ? 1 : LINE;
@@ -396,7 +403,7 @@ function Rail({ rail, height, children }: { rail: RailOf; height: number; childr
         const frame: ViewStyle = {
           position: "absolute",
           left: laneX(Math.min(stroke.col, stroke.lane)) - LINE / 2,
-          width: Math.abs(stroke.lane - stroke.col) * LANE + LINE,
+          width: across(stroke) + LINE,
           top: stroke.up ? 0 : mid - LINE / 2,
           height: mid + LINE / 2,
           borderColor: paint,
@@ -404,13 +411,13 @@ function Rail({ rail, height, children }: { rail: RailOf; height: number; childr
           opacity: fade,
         };
         const corner: ViewStyle = stroke.up
-          ? { borderBottomWidth: LINE, ...(right ? { borderRightWidth: LINE, borderBottomRightRadius: 7 } : { borderLeftWidth: LINE, borderBottomLeftRadius: 7 }) }
-          : { borderTopWidth: LINE, ...(right ? { borderRightWidth: LINE, borderTopRightRadius: 7 } : { borderLeftWidth: LINE, borderTopLeftRadius: 7 }) };
+          ? { borderBottomWidth: LINE, ...(right ? { borderRightWidth: LINE, borderBottomRightRadius: disc } : { borderLeftWidth: LINE, borderBottomLeftRadius: disc }) }
+          : { borderTopWidth: LINE, ...(right ? { borderRightWidth: LINE, borderTopRightRadius: disc } : { borderLeftWidth: LINE, borderTopLeftRadius: disc }) };
         return <View key={n} style={[frame, corner]} />;
       })}
       {/* The dot: a disc that hides the lines meeting behind it, in a slot as tall as the row. */}
-      <View style={{ position: "absolute", left: laneX(rail.col) - DOT / 2, top: 0, width: DOT, height, alignItems: "center", justifyContent: "center" }}>
-        <View style={{ position: "absolute", left: DOT / 2 - 7, top: mid - 7, width: 14, height: 14, borderRadius: 7, backgroundColor: c.surface0 }} />
+      <View style={{ position: "absolute", left: laneX(rail.col) - dot / 2, top: 0, width: dot, height, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", left: dot / 2 - disc, top: mid - disc, width: 2 * disc, height: 2 * disc, borderRadius: disc, backgroundColor: c.surface0 }} />
         {/* In a view of its own: on the web a bare icon would paint under the disc. */}
         <View>{children}</View>
       </View>
@@ -422,29 +429,29 @@ const ROW = 24;
 const TASK = 28;
 
 function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf; dim: boolean }) {
-  const { c, m, ui, set } = useBoard();
+  const { c, m, ui, set, scaled } = useBoard();
   const press = useItemPress(item);
   const done = item.status === "done";
   const quiet = done || item.status === "later" || m.blocked(item);
   const steps = row.steps;
   const step = Boolean(row.parent);
-  const height = step ? ROW : TASK;
+  const height = scaled(step ? ROW : TASK);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={item.title + ", " + m.board.labels[item.status]}
       onPress={press}
-      style={{ flexDirection: "row", alignItems: "center", height, paddingRight: 8 }}
+      style={{ flexDirection: "row", alignItems: "center", height, paddingHorizontal: EDGE }}
     >
       {item.id === ui.selected && <Tint color={c.accent} opacity={0.16} />}
       <Rail rail={rail} height={height}>
         <Complete
           item={item}
           size={step ? 11 : 13}
-          style={{ width: DOT, height, alignItems: "center", justifyContent: "center", opacity: dim ? 0.4 : 1 }}
+          style={{ width: scaled(DOT), height, alignItems: "center", justifyContent: "center", opacity: dim ? 0.4 : 1 }}
         />
       </Rail>
-      <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5, opacity: dim ? 0.4 : 1 }}>
+      <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 5, marginLeft: AFTER_DOT, opacity: dim ? 0.4 : 1 }}>
         {steps && (
           <Pressable
             accessibilityRole="button"
@@ -478,7 +485,7 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
           </T>
         )}
         {!step && ui.tab === "global" && (
-          <T size={9} lines={1} color={c.foregroundMuted} style={{ maxWidth: 80 }}>
+          <T size={9} lines={1} color={c.foregroundMuted} style={{ maxWidth: scaled(80) }}>
             {m.projectName(item.project)}
           </T>
         )}
@@ -488,18 +495,19 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
 }
 
 function FoldRow({ row, fold, rail, dim }: { row: Row; fold: Fold; rail: RailOf; dim: boolean }) {
-  const { c, set } = useBoard();
+  const { c, set, scaled } = useBoard();
+  const height = scaled(ROW);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ expanded: fold.open }}
       onPress={() => set((now) => ({ showDone: { ...now.showDone, [fold.key]: !fold.open } }))}
-      style={{ flexDirection: "row", alignItems: "center", height: ROW, paddingRight: 8, opacity: dim && !fold.open ? 0.4 : 1 }}
+      style={{ flexDirection: "row", alignItems: "center", height, paddingHorizontal: EDGE, opacity: dim && !fold.open ? 0.4 : 1 }}
     >
-      <Rail rail={rail} height={ROW}>
+      <Rail rail={rail} height={height}>
         <Icon name="Check" size={11} color={c.statusSuccess} />
       </Rail>
-      <T size={row.parent ? 10 : 11} color={c.foregroundMuted}>{`${fold.open ? "Hide" : "Show"} ${fold.count} done`}</T>
+      <T size={row.parent ? 10 : 11} color={c.foregroundMuted} style={{ marginLeft: AFTER_DOT }}>{`${fold.open ? "Hide" : "Show"} ${fold.count} done`}</T>
     </Pressable>
   );
 }
