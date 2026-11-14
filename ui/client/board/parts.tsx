@@ -34,6 +34,22 @@ export interface Ctx {
   jumpTo(item: Item): void;
   jumpToDriver(item: Item): void;
   copyTitle(item: Item): void;
+  /** Offer the item's menu at a point in the window. */
+  openMenu(item: Item, x: number, y: number): void;
+}
+
+/**
+ * Props for a right-click. The web shells (iTerm2's web view, Paseo's Electron app) get it
+ * from react-native-web, which hands onContextMenu to the DOM; React Native's types do not list it.
+ */
+export function onRightClick(handler: (x: number, y: number) => void): object {
+  return {
+    onContextMenu(e: { preventDefault(): void; stopPropagation(): void; nativeEvent: { clientX: number; clientY: number } }) {
+      e.preventDefault(); // not the browser's own menu
+      e.stopPropagation();
+      handler(e.nativeEvent.clientX, e.nativeEvent.clientY);
+    },
+  };
 }
 
 /** Where Ui.showDone keeps the fold of a task's finished steps: the list and the inspector share it. */

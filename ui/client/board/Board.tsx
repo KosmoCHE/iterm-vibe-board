@@ -7,7 +7,7 @@ import { Inspector } from "./Inspector";
 import { lasting, List, reveal } from "./List";
 import { model, projectPath } from "./model";
 import type { Model } from "./model";
-import { BoardContext, controlStyle, Icon, Link, Select, T, Tint, useBoard } from "./parts";
+import { BoardContext, controlStyle, Icon, Link, onRightClick, Select, T, Tint, useBoard } from "./parts";
 import type { Ctx, Option, Ui } from "./parts";
 import { SettingsDialog } from "./Settings";
 
@@ -19,6 +19,8 @@ const TABS: [Tab, string][] = [
 ];
 
 type Undo = { id: string; title: string } & ({ fields: Partial<Item> } | { restore: true });
+/** An item's menu: where it was asked for, and the board's own size, both in the board's frame. */
+type MenuAt = { item: Item; x: number; y: number; width: number; height: number };
 
 export function Board({ host }: { host: Host }) {
   const [board, setBoard] = useState<BoardData | null>(null);
@@ -35,6 +37,8 @@ export function Board({ host }: { host: Host }) {
   const [down, setDown] = useState(false); // the server is unreachable; what is shown is stale
   const [message, setMessage] = useState({ text: "", error: false });
   const [undos, setUndos] = useState<Undo[]>([]);
+  const [menu, setMenu] = useState<MenuAt | null>(null);
+  const root = useRef<View>(null);
   const sync = useRef({
     host,
     polling: false,
@@ -201,15 +205,21 @@ export function Board({ host }: { host: Host }) {
     else select(item.id, true); // the session is gone: pick another driver in the editor
   }
 
-  function copyTitle(item: Item) {
-    host.copyText(item.title).then(() => notice("Copied the title"), showError);
+  function copy(text: string, said: string) {
+    host.copyText(text).then(() => notice(said), showError);
+  }
+  const copyTitle = (item: Item) => copy(item.title, "Copied the title");
+
+  function openMenu(item: Item, x: number, y: number) {
+    root.current?.measureInWindow((left, top, width, height) => setMenu({ item, x: x - left, y: y - top, width, height }));
   }
 
   const commands = useRef({ undo, escape() {} });
   commands.current = {
     undo,
     escape() {
-      if (ui.settings) set(() => ({ settings: false }));
+      if (menu) setMenu(null);
+      else if (ui.settings) set(() => ({ settings: false }));
       else if (ui.selected) select(ui.editing ? ui.selected : null);
     },
   };
@@ -235,12 +245,12 @@ export function Board({ host }: { host: Host }) {
   const shown: Ui = { ...ui, filter, selected, editing: Boolean(selected) && ui.editing };
   const scale = (board.settings?.text_size ?? 100) / 100; // a server from before the setting does not report it
   const scaled = (n: number) => Math.round(n * scale);
-  const ctx: Ctx = { host, c, m, ui: shown, scaled, set, patch, remove, select, jumpTo, jumpToDriver, copyTitle };
+  const ctx: Ctx = { host, c, m, ui: shown, scaled, set, patch, remove, select, jumpTo, jumpToDriver, copyTitle, openMenu };
   const canAdd = ui.tab === "global" ? Object.keys(board.projects).length > 0 : m.focus.projects.length > 0;
 
   return (
     <BoardContext.Provider value={ctx}>
-      <View style={{ flex: 1, backgroundColor: c.surface0 }}>
+      <View ref={root} style={{ flex: 1, backgroundColor: c.surface0 }}>
         {down && (
           <View accessibilityRole="alert" style={{ padding: 9, backgroundColor: c.statusWarning }}>
             <T weight="600" color={c.surface0}>
@@ -267,6 +277,16 @@ export function Board({ host }: { host: Host }) {
           )}
         </View>
         {ui.settings && board.settings && <SettingsDialog settings={board.settings} onChange={changeSetting} />}
+        {menu && (
+          <Menu
+            at={menu}
+            onClose={() => setMenu(null)}
+            actions={[
+              ["Copy title", () => copyTitle(menu.item)],
+              ["Copy ID", () => copy(menu.item.id, `Copied the ID ${menu.item.id}`)],
+            ]}
+          />
+        )}
       </View>
     </BoardContext.Provider>
   );
@@ -344,6 +364,45 @@ function Header({ canAdd, filters }: { canAdd: boolean; filters: Option[] }) {
         )}
       </View>
     </View>
+  );
+}
+
+const FILL = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 } as const;
+
+/** A small menu where it was asked for, kept inside the board; a press anywhere else closes it. */
+function Menu({ at, actions, onClose }: { at: MenuAt; actions: [string, () => void][]; onClose: () => void }) {
+  const { c, scaled } = useBoard();
+  const line = scaled(24);
+  const width = scaled(120);
+  const height = actions.length * line + 8;
+  const left = Math.max(4, Math.min(at.x, at.width - width - 4));
+  const top = at.y + height > at.height - 4 ? Math.max(4, at.y - height) : at.y; // opens upwards near the bottom
+  return (
+    <View style={FILL}>
+      <Pressable accessibilityLabel="Close the menu" onPress={onClose} {...onRightClick(onClose)} style={FILL} />
+      <View
+        role="menu"
+        style={{ position: "absolute", left, top, width, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface0, boxShadow: "0 4px 14px rgba(0, 0, 0, 0.3)" }}
+      >
+        {actions.map(([label, run]) => (
+          <MenuItem key={label} label={label} height={line} onPress={() => {
+              onClose();
+              run();
+            }} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function MenuItem({ label, height, onPress }: { label: string; height: number; onPress: () => void }) {
+  const { c } = useBoard();
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Pressable role="menuitem" onPress={onPress} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} style={{ height, justifyContent: "center", paddingHorizontal: 8 }}>
+      {hovered && <Tint color={c.accent} opacity={0.2} />}
+      <T lines={1}>{label}</T>
+    </Pressable>
   );
 }
 

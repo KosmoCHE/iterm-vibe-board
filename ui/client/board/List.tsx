@@ -13,7 +13,7 @@ import type { ViewStyle } from "react-native";
 import type { Item } from "./host";
 import { graphFlows, graphLayers, scopedChildren } from "./model";
 import type { Model } from "./model";
-import { Complete, doneStepsKey, DriverChip, Icon, Link, T, Tint, useBoard, useItemPress } from "./parts";
+import { Complete, doneStepsKey, DriverChip, Icon, Link, onRightClick, T, Tint, useBoard, useItemPress } from "./parts";
 import type { Ui } from "./parts";
 
 // --- what to draw ---------------------------------------------------------------
@@ -429,7 +429,7 @@ const ROW = 24;
 const TASK = 28;
 
 function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf; dim: boolean }) {
-  const { c, m, ui, set, scaled } = useBoard();
+  const { c, m, ui, set, scaled, openMenu } = useBoard();
   const press = useItemPress(item);
   const done = item.status === "done";
   const quiet = done || item.status === "later" || m.blocked(item);
@@ -443,6 +443,7 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
       accessibilityRole="button"
       accessibilityLabel={item.title + ", " + m.board.labels[item.status]}
       onPress={press}
+      {...onRightClick((x, y) => openMenu(item, x, y))}
       style={{ flexDirection: "row", alignItems: "center", height, paddingHorizontal: EDGE }}
     >
       {item.id === ui.selected && <Tint color={c.accent} opacity={0.16} />}

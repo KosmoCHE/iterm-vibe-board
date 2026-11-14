@@ -35,8 +35,9 @@ follows [Semantic Versioning](https://semver.org/).
 - A change shows at once instead of after the next refresh.
 - A `config.json` that does not parse is reported in the panel instead of
   being ignored.
-- Row actions (add a step, copy the title, delete) moved from the right-click
-  menu into the details. Hover tooltips are gone.
+- Row actions (add a step, copy the title, delete) moved into the details.
+  A right-click on a row offers to copy its title or its ID. Hover tooltips
+  are gone.
 - The board keeps refreshing while a field is being edited and keeps what was
   typed, so the "updates pending" banner is gone.
 

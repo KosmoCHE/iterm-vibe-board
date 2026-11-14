@@ -71,7 +71,8 @@ items are yours, agents are just the ones pushing them.
   percentage for every line, icon and control, shared by the iTerm2 panel and
   the Paseo panels.
 - **You edit in the panel.** Press an item's dot to tick it off, press an item for details (adding a
-  step, copying the title and deleting are there), press it twice to edit, `+`
+  step, copying the title and deleting are there; right-click a row to copy its
+  title or ID), press it twice to edit, `+`
   at the top right to add, Undo (⌘Z in iTerm2) to take a change back. Press a
   session badge to jump to that pane or agent. When a session ends its badge
   greys out and you can hand the item to another one.
