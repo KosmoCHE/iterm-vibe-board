@@ -131,6 +131,14 @@ def installation(tmp_path, monkeypatch):
     return state
 
 
+def test_the_service_runs_the_python_it_is_given(installation, monkeypatch):
+    # Python itself reports a versioned path, which goes when Homebrew moves to a new Python.
+    monkeypatch.setattr(service.sys, "argv", ["service", "--python", "/opt/homebrew/bin/python3"])
+    service.main()
+    program = plistlib.loads(installation.path.read_bytes())["ProgramArguments"]
+    assert program[0] == "/opt/homebrew/bin/python3"
+
+
 def test_upgrade_switches_current_only_after_success(installation):
     state = installation
     service.main()

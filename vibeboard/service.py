@@ -84,6 +84,12 @@ def wait_healthy(req: urllib.request.Request) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--uninstall", action="store_true")
+    parser.add_argument(
+        "--python",
+        default=sys.executable,
+        help="the Python launchd starts the server with; an unversioned path such as "
+        "/opt/homebrew/bin/python3 keeps working when Homebrew moves to a new Python",
+    )
     args = parser.parse_args()
     if sys.platform != "darwin":
         raise SystemExit("LaunchAgent installation requires macOS")
@@ -100,7 +106,7 @@ def main() -> None:
     data.mkdir(parents=True, exist_ok=True)
     token = stored_token()  # create once, before the service and panel race to read it
     root = runtime_snapshot(Path(__file__).resolve().parent.parent, data)
-    content = plistlib.dumps(service_config(sys.executable, root, data))
+    content = plistlib.dumps(service_config(args.python, root, data))
     if not loaded:
         # Do not kill or adopt an arbitrary listener, or start an endless crash loop.
         with socket.socket() as probe:

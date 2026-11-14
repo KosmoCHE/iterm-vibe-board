@@ -129,7 +129,7 @@ EOF
   fi
 
   runtime=$(runtime_python)
-  PYTHONPATH="$ROOT" "$PYTHON" -m vibeboard.service
+  PYTHONPATH="$ROOT" "$PYTHON" -m vibeboard.service --python "$PYTHON"
   ln -sfn "$DATA/runtime/current/iterm/vibeboard_panel.py" "$PANEL"
   if [ -z "$runtime" ]; then
     echo "iTerm2's Python runtime is missing, so the panel cannot start yet:"
