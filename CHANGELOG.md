@@ -29,7 +29,8 @@ follows [Semantic Versioning](https://semver.org/).
 - List and Graph are one list now, drawn the way a git graph draws history: one
   line per item, a lane per dependency, a task's steps on a trunk below it.
   Steps show until a task is folded, and pressing an item's dot completes it.
-  A line shows the title, the status and the step count; origin, driver,
+  A line shows the title, the status, the step count and the session that
+  pushes it, unless the Session tab or the step's task already says so;
   what it waits for and the dates are in the details.
 - A change shows at once instead of after the next refresh.
 - A `config.json` that does not parse is reported in the panel instead of

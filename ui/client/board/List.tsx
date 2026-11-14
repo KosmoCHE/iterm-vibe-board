@@ -13,7 +13,7 @@ import type { ViewStyle } from "react-native";
 import type { Item } from "./host";
 import { graphFlows, graphLayers, scopedChildren } from "./model";
 import type { Model } from "./model";
-import { Complete, doneStepsKey, Icon, Link, T, Tint, useBoard, useItemPress } from "./parts";
+import { Complete, doneStepsKey, DriverChip, Icon, Link, T, Tint, useBoard, useItemPress } from "./parts";
 import type { Ui } from "./parts";
 
 // --- what to draw ---------------------------------------------------------------
@@ -436,6 +436,8 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
   const steps = row.steps;
   const step = Boolean(row.parent);
   const height = scaled(step ? ROW : TASK);
+  // Who pushes it. The Session tab already says, and a step its task's driver pushes adds nothing.
+  const driven = Boolean(item.driver) && !done && ui.tab !== "session" && !(item.parent && m.byId[item.parent]?.driver === item.driver);
   return (
     <Pressable
       accessibilityRole="button"
@@ -479,6 +481,11 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
           </T>
         )}
         {row.outside && <Icon name="ArrowUpRight" size={11} color={c.accent} />}
+        {driven && (
+          <View style={{ maxWidth: scaled(90) }}>
+            <DriverChip item={item} />
+          </View>
+        )}
         {steps && (
           <T size={9} color={c.foregroundMuted}>
             {`${steps.done}/${steps.total}`}
