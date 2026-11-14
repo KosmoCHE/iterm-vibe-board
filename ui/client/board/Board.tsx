@@ -7,7 +7,7 @@ import { Inspector } from "./Inspector";
 import { lasting, List, reveal } from "./List";
 import { model, projectPath } from "./model";
 import type { Model } from "./model";
-import { BoardContext, controlStyle, Icon, Link, onRightClick, Select, T, Tint, useBoard } from "./parts";
+import { BoardContext, closesOnLeave, controlStyle, Icon, Link, onRightClick, Select, T, Tint, useBoard } from "./parts";
 import type { Ctx, Option, Ui } from "./parts";
 import { SettingsDialog } from "./Settings";
 
@@ -218,9 +218,7 @@ export function Board({ host }: { host: Host }) {
   commands.current = {
     undo,
     escape() {
-      if (menu) setMenu(null);
-      else if (ui.settings) set(() => ({ settings: false }));
-      else if (ui.selected) select(ui.editing ? ui.selected : null);
+      if (ui.selected) select(ui.editing ? ui.selected : null);
     },
   };
   useEffect(
@@ -372,6 +370,8 @@ const FILL = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 } as c
 /** A small menu where it was asked for, kept inside the board; a press anywhere else closes it. */
 function Menu({ at, actions, onClose }: { at: MenuAt; actions: [string, () => void][]; onClose: () => void }) {
   const { c, scaled } = useBoard();
+  const box = useRef<View>(null);
+  useEffect(() => box.current?.focus(), []);
   const line = scaled(24);
   const width = scaled(120);
   const height = actions.length * line + 8;
@@ -381,7 +381,9 @@ function Menu({ at, actions, onClose }: { at: MenuAt; actions: [string, () => vo
     <View style={FILL}>
       <Pressable accessibilityLabel="Close the menu" onPress={onClose} {...onRightClick(onClose)} style={FILL} />
       <View
+        ref={box}
         role="menu"
+        {...closesOnLeave(onClose)}
         style={{ position: "absolute", left, top, width, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface0, boxShadow: "0 4px 14px rgba(0, 0, 0, 0.3)" }}
       >
         {actions.map(([label, run]) => (

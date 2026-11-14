@@ -1,10 +1,11 @@
 // The settings, in a dialog over the board. The server keeps them in config.json, so
 // every panel, in iTerm2 and in Paseo, shows what one of them set.
 
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import type { Settings } from "./host";
-import { Icon, Select, T, Tint, useBoard } from "./parts";
+import { closesOnLeave, Icon, Select, T, Tint, useBoard } from "./parts";
 
 const TEXT_SIZES = [85, 100, 115, 130, 150, 175]; // percent
 const ARCHIVE_AFTER = [1, 3, 7, 14, 30, 90]; // days
@@ -12,6 +13,8 @@ const ARCHIVE_AFTER = [1, 3, 7, 14, 30, 90]; // days
 export function SettingsDialog({ settings, onChange }: { settings: Settings; onChange: (change: Partial<Settings>, said: string) => void }) {
   const { c, set } = useBoard();
   const close = () => set(() => ({ settings: false }));
+  const box = useRef<View>(null);
+  useEffect(() => box.current?.focus(), []);
   const days = settings.archive_after_days;
   return (
     <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, padding: 10 }}>
@@ -19,8 +22,10 @@ export function SettingsDialog({ settings, onChange }: { settings: Settings; onC
         <Tint color="black" opacity={0.35} />
       </Pressable>
       <View
+        ref={box}
         role="dialog"
         aria-modal
+        {...closesOnLeave(close)}
         accessibilityLabel="Settings"
         style={{ gap: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface0 }}
       >

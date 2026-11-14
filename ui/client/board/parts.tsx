@@ -52,6 +52,27 @@ export function onRightClick(handler: (x: number, y: number) => void): object {
   };
 }
 
+/**
+ * Props that close a popup once the user goes anywhere else, Paseo's own window included,
+ * or presses Escape. The popup holds the focus (focus it when it opens): a press elsewhere
+ * takes the focus away, a press inside keeps it. The key and mouse events come from
+ * react-native-web; React Native's types do not list them.
+ */
+export function closesOnLeave(close: () => void): object {
+  return {
+    focusable: true,
+    onBlur: close,
+    onKeyDown(e: { key: string; stopPropagation(): void }) {
+      if (e.key !== "Escape") return;
+      e.stopPropagation(); // the board's own Escape is for what lies under the popup
+      close();
+    },
+    onMouseDown(e: { preventDefault(): void }) {
+      e.preventDefault(); // or the press would move the focus off the popup and close it
+    },
+  };
+}
+
 /** Where Ui.showDone keeps the fold of a task's finished steps: the list and the inspector share it. */
 export const doneStepsKey = (ui: Ui, task: Item) => ui.tab + ":" + task.id;
 
