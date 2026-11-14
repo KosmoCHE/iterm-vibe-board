@@ -436,8 +436,10 @@ function ItemRow({ row, item, rail, dim }: { row: Row; item: Item; rail: RailOf;
   const steps = row.steps;
   const step = Boolean(row.parent);
   const height = scaled(step ? ROW : TASK);
-  // Who pushes it. The Session tab already says, and a step its task's driver pushes adds nothing.
-  const driven = Boolean(item.driver) && !done && ui.tab !== "session" && !(item.parent && m.byId[item.parent]?.driver === item.driver);
+  // Who pushes it. A Session tab of one session already says (in Paseo it holds every agent of
+  // the workspace), and a step its task's driver pushes adds nothing.
+  const said = (ui.tab === "session" && m.focus.sessions.length === 1) || (item.parent && m.byId[item.parent]?.driver === item.driver);
+  const driven = Boolean(item.driver) && !done && !said;
   return (
     <Pressable
       accessibilityRole="button"
